@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotakin CCTV Audit – Webapp Build Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f1a;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --border: #1e2d45;
+  --border2: #243352;
+  --accent: #00c2ff;
+  --accent2: #0077cc;
+  --gold: #f0b429;
+  --green: #10d98a;
+  --orange: #ff6b35;
+  --red: #ff4757;
+  --purple: #a78bfa;
+  --text: #e8edf5;
+  --text2: #8899b4;
+  --text3: #4a5f7a;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Syne', sans-serif;
+  --body: 'Lato', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 100vh;
+}
+
+/* ---- SCAN LINES TEXTURE ---- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- HERO HEADER ---- */
+.hero {
+  position: relative;
+  padding: 70px 40px 60px;
+  text-align: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(0,194,255,0.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-eyebrow::before, .hero-eyebrow::after {
+  content: '';
+  display: inline-block;
+  width: 30px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+.hero h1 {
+  font-family: var(--display);
+  font-size: clamp(32px, 5vw, 58px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -1px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.hero h1 span { color: var(--accent); }
+
+.hero-sub {
+  font-size: 16px;
+  color: var(--text2);
+  max-width: 600px;
+  margin: 18px auto 0;
+  font-weight: 300;
+}
+
+.version-badge {
+  display: inline-block;
+  margin-top: 28px;
+  background: rgba(0,194,255,0.08);
+  border: 1px solid rgba(0,194,255,0.25);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 16px;
+  border-radius: 20px;
+}
+
+/* ---- NAVIGATION ---- */
+.toc-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11,15,26,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toc-bar::-webkit-scrollbar { display: none; }
+
+.toc-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  text-decoration: none;
+  padding: 14px 12px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: .2s;
+  letter-spacing: .5px;
+}
+.toc-link:hover { color: var(--accent); border-bottom-color: rgba(0,194,255,0.4); }
+
+/* ---- LAYOUT ---- */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- SECTION ---- */
+.section {
+  margin-top: 64px;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title .icon {
+  width: 36px; height: 36px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.section-intro {
+  color: var(--text2);
+  font-size: 14px;
+  margin-top: 14px;
+  margin-bottom: 24px;
+  max-width: 820px;
+}
+
+/* ---- CARDS ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  transition: border-color .2s;
+}
+.card:hover { border-color: var(--border2); }
+
+.card-title {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---- FEATURE GRID ---- */
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.feat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: .2s;
+  position: relative;
+  overflow: hidden;
+}
+.feat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.feat-card.new::before { background: var(--green); }
+.feat-card.enhanced::before { background: var(--accent); }
+.feat-card.existing::before { background: var(--text3); }
+.feat-card.critical::before { background: var(--orange); }
+.feat-card.ai::before { background: var(--purple); }
+
+.feat-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.feat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.feat-label.new { color: var(--green); }
+.feat-label.enhanced { color: var(--accent); }
+.feat-label.existing { color: var(--text3); }
+.feat-label.critical { color: var(--orange); }
+.feat-label.ai { color: var(--purple); }
+
+.feat-title {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.feat-desc {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+/* ---- MODULE BLOCK ---- */
+.module-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.module-hdr {
+  padding: 16px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.module-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.module-name {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.module-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.module-body {
+  padding: 16px 20px;
+}
+
+/* ---- SPEC TABLE ---- */
+.spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 10px;
+}
+.spec-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.spec-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(30,45,69,0.5);
+  color: var(--text2);
+  vertical-align: top;
+}
+.spec-table tr:last-child td { border-bottom: none; }
+.spec-table td:first-child {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.spec-table td code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(0,194,255,0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* ---- TIMELINE ---- */
+.timeline {
+  position: relative;
+  padding-left: 32px;
+  margin-top: 20px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 8px; bottom: 8px;
+  width: 1px;
+  background: var(--border);
+}
+
+.tl-item {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.tl-dot {
+  position: absolute;
+  left: -28px;
+  top: 4px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tl-dot.p1 { border-color: var(--orange); background: rgba(255,107,53,0.15); }
+.tl-dot.p2 { border-color: var(--accent); background: rgba(0,194,255,0.1); }
+.tl-dot.p3 { border-color: var(--green); background: rgba(16,217,138,0.1); }
+.tl-dot.p4 { border-color: var(--purple); background: rgba(167,139,250,0.1); }
+
+.tl-phase {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tl-phase.p1 { color: var(--orange); }
+.tl-phase.p2 { color: var(--accent); }
+.tl-phase.p3 { color: var(--green); }
+.tl-phase.p4 { color: var(--purple); }
+
+.tl-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tl-tasks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tl-tasks li {
+  font-size: 13px;
+  color: var(--text2);
+  padding-left: 14px;
+  position: relative;
+}
+
+.tl-tasks li::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--text3);
+}
+
+/* ---- FLOW STEPS ---- */
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.flow-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: .2s;
+}
+.flow-step:hover { border-color: var(--border2); }
+
+.step-num {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.step-content {}
+.step-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.step-desc { font-size: 12px; color: var(--text2); }
+
+/* ---- PILL CHIPS ---- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.chip-blue { color: var(--accent); border-color: rgba(0,194,255,0.3); background: rgba(0,194,255,0.06); }
+.chip-green { color: var(--green); border-color: rgba(16,217,138,0.3); background: rgba(16,217,138,0.06); }
+.chip-orange { color: var(--orange); border-color: rgba(255,107,53,0.3); background: rgba(255,107,53,0.06); }
+.chip-purple { color: var(--purple); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06); }
+.chip-gold { color: var(--gold); border-color: rgba(240,180,41,0.3); background: rgba(240,180,41,0.06); }
+
+/* ---- CALLOUT ---- */
+.callout {
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 16px 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.callout-body strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.callout-body p { color: var(--text2); }
+
+.callout.info { background: rgba(0,194,255,0.06); border: 1px solid rgba(0,194,255,0.2); color: var(--accent); }
+.callout.info .callout-body p { color: #7dc8e8; }
+.callout.warn { background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.25); color: var(--orange); }
+.callout.warn .callout-body p { color: #d4855c; }
+.callout.success { background: rgba(16,217,138,0.06); border: 1px solid rgba(16,217,138,0.25); color: var(--green); }
+.callout.success .callout-body p { color: #6dcfaa; }
+.callout.purple { background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.25); color: var(--purple); }
+.callout.purple .callout-body p { color: #b49ff5; }
+
+/* ---- TWO COL ---- */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ---- BADGE ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,194,255,0.07);
+  border: 1px solid rgba(0,194,255,0.2);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+.badge.green { background: rgba(16,217,138,0.07); border-color: rgba(16,217,138,0.2); color: var(--green); }
+.badge.orange { background: rgba(255,107,53,0.07); border-color: rgba(255,107,53,0.2); color: var(--orange); }
+.badge.purple { background: rgba(167,139,250,0.07); border-color: rgba(167,139,250,0.2); color: var(--purple); }
+.badge.gold { background: rgba(240,180,41,0.07); border-color: rgba(240,180,41,0.2); color: var(--gold); }
+
+/* ---- DIVIDER ---- */
+.divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+/* ---- CODE BLOCK ---- */
+.code-block {
+  background: #0d1321;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #a8c7ef;
+  overflow-x: auto;
+  margin-top: 10px;
+  white-space: pre;
+  line-height: 1.7;
+}
+
+.code-block .cm { color: #4a6080; }
+.code-block .ky { color: var(--accent); }
+.code-block .st { color: var(--green); }
+.code-block .nm { color: var(--gold); }
+
+/* ---- FOOTER ---- */
+.footer {
+  text-align: center;
+  padding: 40px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-top: 60px;
+}
+
+/* ---- PRINT ---- */
+@media print {
+  body { background: #fff; color: #000; }
+  .toc-bar { display: none; }
+  body::before { display: none; }
+  .hero::before { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Build Plan v3.0</div>
+  <h1>Rotakin CCTV Audit<br><span>Webapp — Full Specification</span></h1>
+  <p class="hero-sub">A complete development plan for an image-based, AI-assisted, standards-compliant CCTV audit and reporting platform for SANS 10222-5-1-4 compliance testing.</p>
+  <div class="version-badge">&#9679; Based on rotakin_v2.html &nbsp;|&nbsp; Expanding to full webapp with image processing &amp; automated reporting</div>
+</div>
+
+<!-- NAV -->
+<nav class="toc-bar">
+  <a class="toc-link" href="#overview">01 Overview</a>
+  <a class="toc-link" href="#existing">02 Existing Tool</a>
+  <a class="toc-link" href="#new-features">03 New Features</a>
+  <a class="toc-link" href="#image-pipeline">04 Image Pipeline</a>
+  <a class="toc-link" href="#modules">05 Modules</a>
+  <a class="toc-link" href="#reporting">06 Reporting</a>
+  <a class="toc-link" href="#ai">07 AI Layer</a>
+  <a class="toc-link" href="#data">08 Data Model</a>
+  <a class="toc-link" href="#architecture">09 Architecture</a>
+  <a class="toc-link" href="#roadmap">10 Roadmap</a>
+  <a class="toc-link" href="#phases">11 Phases</a>
+</nav>
+
+<div class="container">
+
+<!-- ======================================================== -->
+<!-- 01 OVERVIEW -->
+<!-- ======================================================== -->
+<section class="section" id="overview">
+  <div class="section-label">01 — Executive Overview</div>
+  <h2 class="section-title"><span class="icon">🎯</span> What We're Building</h2>
+  <p class="section-intro">
+    A full-featured browser-based webapp that automates the <strong>Rotakin CCTV audit process</strong> defined by SANS 10222-5-1-4. The key leap from v2 is the introduction of an <strong>image ingestion pipeline</strong>: engineers drop camera screenshots or exported frames into a folder and the system automatically analyses them, extracts %R measurements, validates audit steps, and produces a professional compliance report — all without manual data entry.
+  </p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--orange)"></span>Problem Being Solved</div>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:8px;">
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--orange)">▸</span> Engineers manually read %R values from monitor screens — slow and error-prone</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--orange)">▸</span> 7-step audit procedure done on paper or in disconnected spreadsheets</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--orange)">▸</span> Report writing is manual and inconsistent between engineers</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--orange)">▸</span> No automated evidence trail linking images to test results</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--orange)">▸</span> Facial recognition scoring (10-line test) is tedious to record and calculate</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>Solution Delivered</div>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:8px;">
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Drop a folder of camera images → auto-detect Rotakin targets → measure %R</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> AI-assisted step validation and anomaly flagging per camera</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> One-click SANS-compliant PDF report with embedded evidence images</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Full audit trail with image annotations and engineer sign-off</li>
+        <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Automatic facial recognition scoring from face card images</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout info" style="margin-top:20px">
+    <span class="callout-icon">ℹ️</span>
+    <div class="callout-body">
+      <strong>Standards Compliance</strong>
+      <p>The webapp is purpose-built for <strong>SANS 10222-5-1-4</strong> (South African National Standard for Electronic Security Systems — CCTV). The %R measurement system and 5-tier level classification (Identification / Recognition / Observation / Detection / Monitoring) plus the optional Facial 12% standard are all hard-coded into the engine with user-editable overrides for other standards (BS EN 50132-7, NPSA, custom).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 02 EXISTING TOOL REVIEW -->
+<!-- ======================================================== -->
+<section class="section" id="existing">
+  <div class="section-label">02 — Existing Tool Analysis</div>
+  <h2 class="section-title"><span class="icon">📋</span> What v2 Already Does Well</h2>
+  <p class="section-intro">The current rotakin_v2.html is a solid single-file audit tool. The new webapp should retain all of this and build on top of it.</p>
+
+  <div class="feat-grid">
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Site &amp; Report Info Form</div>
+      <div class="feat-desc">15-field site detail form: report ref, date, site name, address, client, contract, engineer ID, witness, cert number, NVR ref, weather, lux, notes. Logo upload to base64.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Camera Test Records</div>
+      <div class="feat-desc">Per-camera cards with: ref, make, model, lens, zone, resolution, location, purpose/standard selection, measured %R input, mounting height, target distance. Collapsible accordion UI.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">7-Step Audit Procedure</div>
+      <div class="feat-desc">Editable 7-step Rotakin test checklist per camera. Steps cover: target setup, focus, resolution reading, colour separation, smear/motion blur, T-piece colour chart, and face display test.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Level Classification Engine</div>
+      <div class="feat-desc">Automatic tier assignment from %R value against configurable SANS standards. Visual result display with colour-coded level badge, gauge bar, and sub-text explanation.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Facial Scoring Table</div>
+      <div class="feat-desc">10-line face display test: records technician's read (L/R) and observer's read (L/R), marks correct/incorrect per line, calculates percentage accuracy automatically.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">IndexedDB Persistence</div>
+      <div class="feat-desc">All data auto-saved to browser IndexedDB with 1-second debounce. Export/import via JSON. No server required for basic operation.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Print/PDF Report</div>
+      <div class="feat-desc">Print-stylesheet-based PDF generation. Multi-page layout with site header, summary table, per-camera records, images, step results, face scores, and signature blocks.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Ollama AI Report Generator</div>
+      <div class="feat-desc">Connects to local Ollama instance. 5 report templates: Full Audit, Executive Summary, Technical Detail, SAPS Forensic, Remediation. Configurable model and server URL.</div>
+    </div>
+    <div class="feat-card existing">
+      <div class="feat-label existing">Keep — Existing</div>
+      <div class="feat-title">Settings / Standards Editor</div>
+      <div class="feat-desc">Editable SANS standard levels and audit step definitions. Add/remove/reset rows. Changes propagate immediately to all camera records.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 03 NEW FEATURES -->
+<!-- ======================================================== -->
+<section class="section" id="new-features">
+  <div class="section-label">03 — New Feature Set</div>
+  <h2 class="section-title"><span class="icon">✨</span> New Capabilities for v3</h2>
+  <p class="section-intro">These features transform the tool from a manual data-entry form into an automated testing platform driven by camera images.</p>
+
+  <div class="feat-grid">
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Image Folder Ingestion</div>
+      <div class="feat-desc">Drag-and-drop a folder (or use a file picker) to load all camera images at once. Images are auto-associated with cameras by filename pattern or manual assignment. Supports JPG, PNG, TIFF, BMP.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Automatic %R Measurement</div>
+      <div class="feat-desc">Client-side image analysis using Canvas API to detect the Rotakin figure in frame, measure its height as a percentage of total frame height, and automatically populate the %R field.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Image Annotation Viewer</div>
+      <div class="feat-desc">Interactive image viewer with overlay annotations: bounding box around detected Rotakin, %R measurement ruler, level classification label, measurement confidence indicator, and zoom/pan controls.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Multi-Image Per Camera</div>
+      <div class="feat-desc">Each camera supports multiple test images: static position, rotation smear test, T-piece/colour chart, face display test images. Gallery view with thumbnails and per-image annotations.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Automated Step Validation</div>
+      <div class="feat-desc">AI analyses each uploaded image and auto-fills audit step results: detects focus quality, colour bar visibility, motion blur severity, colour chart accuracy. Engineer reviews and overrides.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Batch Camera Import</div>
+      <div class="feat-desc">Parse a CSV of camera details (ref, make, model, zone, etc.) to bulk-create camera records. Template CSV download provided. Saves hours on large-site audits.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Face Card Recognition</div>
+      <div class="feat-desc">Upload face card images from the Rotakin set. AI identifies the face number on each card. Automatically populates the technician's record columns in the facial scoring table.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Advanced PDF Report Engine</div>
+      <div class="feat-desc">Replace print-stylesheet PDF with a proper jsPDF/pdfmake report: embedded images at correct DPI, pixel-perfect layout, consistent pagination, watermark, digital signature block, and evidence image grid.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Report Template System</div>
+      <div class="feat-desc">Choose from 5 report layouts: SANS Full Audit, Executive Summary, Technical Appendix, SAPS Forensic Exhibit, Remediation Action Plan. Each has configurable sections and branding.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">🆕 New</div>
+      <div class="feat-title">Compliance Heatmap Dashboard</div>
+      <div class="feat-desc">Site-level overview: floor plan or zone list with colour-coded compliance status per camera. Instantly shows which zones are Identification, Recognition, below-minimum, etc.</div>
+    </div>
+    <div class="feat-card ai">
+      <div class="feat-label ai">🤖 AI</div>
+      <div class="feat-title">Claude/Anthropic API Integration</div>
+      <div class="feat-desc">Option to use Claude API (in addition to Ollama) for AI report generation, step validation narration, and anomaly explanation. Configurable API key or proxy endpoint.</div>
+    </div>
+    <div class="feat-card enhanced">
+      <div class="feat-label enhanced">⬆ Enhanced</div>
+      <div class="feat-title">Audit History &amp; Versioning</div>
+      <div class="feat-desc">Each save creates a timestamped version. View history timeline, compare results between audits, track remediation progress across repeat site visits.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 04 IMAGE PIPELINE -->
+<!-- ======================================================== -->
+<section class="section" id="image-pipeline">
+  <div class="section-label">04 — Core Technical System</div>
+  <h2 class="section-title"><span class="icon">🖼️</span> Image Ingestion &amp; Analysis Pipeline</h2>
+  <p class="section-intro">This is the most technically novel part of the webapp. All image processing runs client-side in the browser using the Canvas API and WebAssembly — no server upload required for the core analysis.</p>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-body">
+      <strong>Folder Input Requirement</strong>
+      <p>Browsers support folder drop via <code>webkitdirectory</code> attribute and the DataTransfer API. Users drop an entire folder and the app reads all images inside it. This works in Chrome, Edge, and Firefox without any server component. File System Access API can also be used for persistent folder watching.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">Processing Flow — Per Image</h3>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <div class="step-title">File Ingestion &amp; Validation</div>
+        <div class="step-desc">Accept JPG/PNG/TIFF/BMP. Check file is valid image. Parse filename for camera reference pattern (e.g. <code>CAM-01_static.jpg</code>, <code>front-door_smear.png</code>). Queue for processing.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <div class="step-title">Image Normalisation</div>
+        <div class="step-desc">Decode to Canvas. Normalise brightness/contrast for consistent detection. Record original resolution and aspect ratio. Create thumbnail (200×150) for gallery display.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <div class="step-title">Rotakin Target Detection</div>
+        <div class="step-desc">Run edge detection (Canny-like filter via Canvas pixel data). Identify tall vertical rectangular region matching Rotakin silhouette proportions (~1:5 width:height ratio). Locate bounding box.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">04</div>
+      <div class="step-content">
+        <div class="step-title">%R Calculation</div>
+        <div class="step-desc">Measure detected figure height in pixels. Divide by total frame height in pixels. Multiply by 100. This is the %R value. Compare against configured SANS standards to assign level. Store raw and rounded values.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">05</div>
+      <div class="step-content">
+        <div class="step-title">Step-Specific Analysis</div>
+        <div class="step-desc">Based on image type tag: <em>static</em> → measure resolution scale bar. <em>smear</em> → detect motion blur magnitude. <em>colour</em> → sample colour bar regions and score accuracy. <em>face</em> → attempt face/number identification.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">06</div>
+      <div class="step-content">
+        <div class="step-title">Confidence Scoring &amp; Flag</div>
+        <div class="step-desc">Every automated measurement gets a 0–100% confidence score. Low-confidence results (below 70%) are flagged yellow for engineer review. Very low (below 40%) flagged red — manual entry required.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">07</div>
+      <div class="step-content">
+        <div class="step-title">Annotation Render</div>
+        <div class="step-desc">Overlay bounding box, measurement ruler, confidence percentage, and level badge onto a copy of the image. Store annotated image as base64 for report embedding. Original image preserved separately.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">08</div>
+      <div class="step-content">
+        <div class="step-title">Camera Record Population</div>
+        <div class="step-desc">Push all extracted values into the associated camera record. Pre-fill step result fields. Trigger UI refresh. Engineer sees the auto-populated form with images and can verify/correct any value.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout success" style="margin-top:20px">
+    <span class="callout-icon">✅</span>
+    <div class="callout-body">
+      <strong>Naming Convention for Auto-Assignment</strong>
+      <p>Images named <code>[camera-ref]_[step-type].[ext]</code> are automatically associated. Supported step types: <code>static</code>, <code>smear</code>, <code>colour</code>, <code>face</code>, <code>snapshot</code>. Example: <code>CAM-03_smear.jpg</code> → Camera 3, Step 5 (smear test). Unrecognised filenames go to an "Unassigned" tray for manual drag-assignment.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">Technical Implementation Notes</h3>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Canvas-Based Processing</div>
+      <div class="code-block"><span class="cm">// Core %R measurement</span>
+<span class="ky">function</span> <span class="nm">measureRotakinR</span>(imageData) {
+  <span class="ky">const</span> edges = sobelEdgeDetect(imageData);
+  <span class="ky">const</span> bbox = findRotakinBBox(edges);
+  <span class="ky">if</span> (!bbox) <span class="ky">return</span> { r: <span class="nm">null</span>, conf: <span class="nm">0</span> };
+  
+  <span class="ky">const</span> figH = bbox.bottom - bbox.top;
+  <span class="ky">const</span> frameH = imageData.height;
+  <span class="ky">const</span> rValue = (figH / frameH) * <span class="nm">100</span>;
+  
+  <span class="ky">return</span> {
+    r: rValue.toFixed(<span class="nm">1</span>),
+    conf: bbox.confidence,
+    bbox
+  };
+}</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>WebWorker Threading</div>
+      <div class="feat-desc" style="font-size:13px; color:var(--text2); line-height:1.7;">
+        Image processing runs in a <strong>WebWorker</strong> to prevent UI freezing during batch analysis of large image sets. Progress is communicated back to the main thread via postMessage events. Each image is processed sequentially with a progress bar and estimated time remaining.
+        <br><br>
+        A worker pool of 2–4 workers (based on <code>navigator.hardwareConcurrency</code>) allows parallel processing of independent images.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 05 MODULES -->
+<!-- ======================================================== -->
+<section class="section" id="modules">
+  <div class="section-label">05 — Application Modules</div>
+  <h2 class="section-title"><span class="icon">🧩</span> Module Breakdown</h2>
+  <p class="section-intro">The webapp is structured into 8 tabs/modules. Each module is self-contained with its own state, components, and storage keys.</p>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M1</div>
+      <div class="module-name">📋 Site &amp; Report Setup</div>
+      <span class="module-tag chip-blue chip">Existing + Enhanced</span>
+    </div>
+    <div class="module-body">
+      <div class="spec-table" style="overflow-x:auto"><table class="spec-table">
+        <tr><th>Field / Feature</th><th>Description</th><th>Status</th></tr>
+        <tr><td>Site Details Form</td><td>All 15 existing fields retained. Add: GPS coordinates field, site type dropdown (retail, industrial, residential, government), inspector certification body.</td><td><span class="badge">Enhanced</span></td></tr>
+        <tr><td>Organisation Logo</td><td>Upload PNG/JPG logo, stored as base64. Appears on all PDF reports. Add: secondary "client logo" field for dual-branded reports.</td><td><span class="badge">Enhanced</span></td></tr>
+        <tr><td>Audit Configuration</td><td>Select active standard (SANS 10222-5-1-4 / BS EN 50132-7 / Custom). This drives all threshold values throughout the audit.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Import from Previous</td><td>Load site details from a previous audit JSON export to pre-populate fields for repeat site visits.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>GPS / Map Pin</td><td>Optional: click a map or enter coordinates. Embedded in report header as QR code linking to Google Maps location.</td><td><span class="badge green">New</span></td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M2</div>
+      <div class="module-name">🖼️ Image Importer</div>
+      <span class="module-tag chip-green chip">New Module</span>
+    </div>
+    <div class="module-body">
+      <p style="font-size:13px; color:var(--text2); margin-bottom:14px;">The heart of the new system. All camera evidence images are managed here before being pushed to camera records.</p>
+      <div class="spec-table" style="overflow-x:auto"><table class="spec-table">
+        <tr><th>Feature</th><th>Description</th></tr>
+        <tr><td>Folder Drop Zone</td><td>Large drag-and-drop target accepting entire folder. Shows file count, total size, and detected image count on hover. Also works with multi-file picker.</td></tr>
+        <tr><td>Image Queue</td><td>Grid of thumbnail cards with: filename, detected camera association, detected step type, processing status (Pending / Processing / Done / Review / Error).</td></tr>
+        <tr><td>Batch Processing Controls</td><td>Process All, Process Selected, Pause, Resume. Progress bar with per-image status and overall ETA. Cancel individual images from queue.</td></tr>
+        <tr><td>Manual Assignment</td><td>Drag unassigned images to camera slots. Or use a dropdown on each image card to assign to camera + step type.</td></tr>
+        <tr><td>Annotation Preview</td><td>Click any processed image to open full annotation viewer: original vs annotated comparison, bounding box overlay, ruler, confidence badge, measurement values.</td></tr>
+        <tr><td>Naming Convention Helper</td><td>Inline guide explaining expected filename format. Button to rename files in bulk using the correct pattern.</td></tr>
+        <tr><td>Re-process</td><td>Adjust image pre-processing settings (brightness, contrast, threshold) and re-run analysis on specific images for better detection accuracy.</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M3</div>
+      <div class="module-name">📷 Camera Test Records</div>
+      <span class="module-tag chip-blue chip">Existing + Enhanced</span>
+    </div>
+    <div class="module-body">
+      <div class="spec-table" style="overflow-x:auto"><table class="spec-table">
+        <tr><th>Feature</th><th>Description</th><th>Status</th></tr>
+        <tr><td>Auto-populated %R</td><td>When an image is analysed and assigned, the measured %R value auto-fills. Engineer sees yellow highlight indicating auto-populated value. Hover to see confidence score.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Image Gallery per Camera</td><td>Each camera card has a 6-slot image gallery: Static, Smear, Colour Chart, Face Display, Extra 1, Extra 2. Shows thumbnail, analysis status, and measurement extracted from each.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Step Auto-fill</td><td>Based on image analysis, step result fields are auto-filled: e.g. Step 2 (focus) = "Good focus detected — Sharpness index: 84/100". Engineer can override.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Camera Health Indicator</td><td>Each camera header shows a small status dot: Green = all steps complete, Yellow = some steps pending/flagged, Red = failed or below minimum.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Duplicate Camera</td><td>Clone a camera record (useful for multiple identical cameras in the same zone). Creates a copy with images detached — assign new images.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Sort &amp; Filter</td><td>Sort cameras by: ID, Zone, Level Achieved, Compliance Status. Filter by: Zone, Standard, Status. Instant search by camera ref.</td><td><span class="badge green">New</span></td></tr>
+        <tr><td>Existing Fields</td><td>All existing camera fields retained: ref, make, model, lens, zone, resolution, location, purpose, %R, mounting height, target distance, lighting, notes.</td><td><span class="badge">Existing</span></td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M4</div>
+      <div class="module-name">📊 Audit Summary &amp; Dashboard</div>
+      <span class="module-tag chip-blue chip">Existing + Enhanced</span>
+    </div>
+    <div class="module-body">
+      <div class="spec-table" style="overflow-x:auto"><table class="spec-table">
+        <tr><th>Component</th><th>Description</th></tr>
+        <tr><td>KPI Summary Row</td><td>Total cameras, pass count, cameras below minimum, pending review, completion percentage. Existing 4-box layout enhanced with trend indicator.</td></tr>
+        <tr><td>Level Distribution Chart</td><td>Stacked bar or donut chart: breakdown of cameras by achieved level (Identification/Recognition/Observation/Detection/Monitoring/Below Min). Rendered via Canvas chart.</td></tr>
+        <tr><td>Zone Compliance Table</td><td>Table grouping cameras by zone/area with: required standard, achieved level, %R range, status. Color-coded rows.</td></tr>
+        <tr><td>Non-Compliance List</td><td>All cameras below their required standard, with required vs achieved %R, delta, and suggested remediation (lens change, camera repositioning, resolution upgrade).</td></tr>
+        <tr><td>Image Coverage Summary</td><td>Grid showing all cameras with thumbnails and level badge. Visual proof that every camera has been tested with photographic evidence.</td></tr>
+        <tr><td>Facial Test Summary</td><td>Overall face recognition accuracy across all cameras with face test. Average % correct, cameras above/below 80% threshold.</td></tr>
+        <tr><td>Export Options</td><td>Export summary as: CSV table, PDF summary page, JSON data, or copy to clipboard as formatted text.</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M5</div>
+      <div class="module-name">📄 Report Generator</div>
+      <span class="module-tag chip-green chip">Major Enhancement</span>
+    </div>
+    <div class="module-body">
+      <p style="font-size:13px; color:var(--text2); margin-bottom:14px;">Full report system documented in Section 06. This module is the report configuration and preview interface.</p>
+      <div class="chips">
+        <span class="chip chip-blue">Template Selector</span>
+        <span class="chip chip-blue">Section Toggles</span>
+        <span class="chip chip-blue">Image Resolution Setting</span>
+        <span class="chip chip-blue">Watermark Options</span>
+        <span class="chip chip-blue">Cover Page Config</span>
+        <span class="chip chip-blue">Live Preview Pane</span>
+        <span class="chip chip-blue">Generate PDF Button</span>
+        <span class="chip chip-blue">Generate Word Doc Button</span>
+        <span class="chip chip-blue">Email Report Button</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M6</div>
+      <div class="module-name">🤖 AI Assistant</div>
+      <span class="module-tag chip-purple chip">Existing + New Features</span>
+    </div>
+    <div class="module-body">
+      <p style="font-size:13px; color:var(--text2); margin-bottom:14px;">Detailed in Section 07. The AI module now supports multiple backends and provides image-aware analysis.</p>
+      <div class="chips">
+        <span class="chip chip-purple">Ollama (existing)</span>
+        <span class="chip chip-purple">Claude API</span>
+        <span class="chip chip-purple">OpenAI-compatible</span>
+        <span class="chip chip-purple">Image Analysis</span>
+        <span class="chip chip-purple">Step Narration</span>
+        <span class="chip chip-purple">Anomaly Explanation</span>
+        <span class="chip chip-purple">Remediation Suggestions</span>
+        <span class="chip chip-purple">Report Drafting</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M7</div>
+      <div class="module-name">📜 Audit Trail &amp; History</div>
+      <span class="module-tag chip-green chip">New Module</span>
+    </div>
+    <div class="module-body">
+      <div class="spec-table" style="overflow-x:auto"><table class="spec-table">
+        <tr><th>Feature</th><th>Description</th></tr>
+        <tr><td>Version Timeline</td><td>Every save creates a timestamped snapshot. Visual timeline of all versions with change summary (fields modified, cameras added/removed, images uploaded).</td></tr>
+        <tr><td>Change Log</td><td>Per-field change tracking: who changed what and when. Critical for audits that span multiple sessions or engineers.</td></tr>
+        <tr><td>Repeat Visit Comparison</td><td>Load two audit versions side-by-side. Highlight which cameras improved, degraded, or are newly non-compliant. Useful for post-remediation re-audits.</td></tr>
+        <tr><td>Export History</td><td>Download full audit history as a ZIP: all JSON snapshots + final PDF. Provides complete evidence package for regulatory submission.</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="module-block">
+    <div class="module-hdr">
+      <div class="module-num">M8</div>
+      <div class="module-name">⚙️ Settings &amp; Configuration</div>
+      <span class="module-tag chip-blue chip">Existing + Enhanced</span>
+    </div>
+    <div class="module-body">
+      <div class="chips">
+        <span class="chip chip-blue">SANS Standards Editor (existing)</span>
+        <span class="chip chip-blue">Audit Steps Editor (existing)</span>
+        <span class="chip chip-green">AI Backend Config</span>
+        <span class="chip chip-green">Image Processing Settings</span>
+        <span class="chip chip-green">Report Template Editor</span>
+        <span class="chip chip-green">Naming Convention Config</span>
+        <span class="chip chip-green">Confidence Thresholds</span>
+        <span class="chip chip-green">Engineer Profiles</span>
+        <span class="chip chip-green">App Theme (Light/Dark)</span>
+        <span class="chip chip-green">Export Format Preferences</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ======================================================== -->
+<!-- 06 REPORTING -->
+<!-- ======================================================== -->
+<section class="section" id="reporting">
+  <div class="section-label">06 — Report System</div>
+  <h2 class="section-title"><span class="icon">📄</span> Report Generation Engine</h2>
+  <p class="section-intro">The v3 report system replaces the browser print-to-PDF approach with a proper PDF generation library, enabling pixel-perfect layouts, embedded images at correct resolution, consistent pagination, and multiple output formats.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">📦</span>
+    <div class="callout-body">
+      <strong>Recommended Library: jsPDF + jsPDF-AutoTable</strong>
+      <p>Both load from CDN, no build step needed. jsPDF handles text/graphics/images. AutoTable handles the data tables. For Word format, docx.js can generate .docx files client-side. All operate entirely in-browser.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">Report Templates</h3>
+
+  <div class="feat-grid">
+    <div class="feat-card new">
+      <div class="feat-label new">Template 1</div>
+      <div class="feat-title">SANS Full Audit Report</div>
+      <div class="feat-desc">The primary compliance document. 10–20 pages depending on camera count. Suitable for submission to regulatory bodies, insurance assessors, or property managers.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">Template 2</div>
+      <div class="feat-title">Executive Summary</div>
+      <div class="feat-desc">2-page board-level overview: site, audit date, total cameras tested, compliance rate, key findings, and recommended actions. No technical detail.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">Template 3</div>
+      <div class="feat-title">Technical Appendix</div>
+      <div class="feat-desc">Engineer-focused detail: raw measurements, image analysis confidence scores, step-by-step results for every camera, annotated images at full size.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">Template 4</div>
+      <div class="feat-title">SAPS Forensic Exhibit</div>
+      <div class="feat-desc">Formatted for South African Police Service forensic evidence requirements. Chain of custody section, examiner certification, exhibit reference numbering.</div>
+    </div>
+    <div class="feat-card new">
+      <div class="feat-label new">Template 5</div>
+      <div class="feat-title">Remediation Action Plan</div>
+      <div class="feat-desc">Non-compliant cameras only. Table of required upgrades with priority rating, suggested equipment, estimated cost band, and compliance target. Sign-off tracking.</div>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">SANS Full Audit Report — Page Structure</h3>
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="spec-table" style="margin:0">
+      <tr><th>Page(s)</th><th>Section</th><th>Content</th></tr>
+      <tr><td>1</td><td>Cover Page</td><td>Org logo, client logo, report title, reference number, site name, audit date, classification, engineer name &amp; cert number, confidentiality notice.</td></tr>
+      <tr><td>2</td><td>Table of Contents</td><td>Auto-generated from sections. Page numbers linked (PDF bookmarks).</td></tr>
+      <tr><td>3</td><td>Site &amp; Audit Details</td><td>All site information table, weather/lux conditions, CCTV system details, witness details, standards applied.</td></tr>
+      <tr><td>4</td><td>Executive Summary</td><td>AI-generated or template summary paragraph. KPI boxes: total cameras, compliance rate, highest/lowest achieved levels. Top 3 findings.</td></tr>
+      <tr><td>5</td><td>Compliance Overview Table</td><td>All cameras tabulated: Ref / Zone / Required Standard / Achieved Level / %R / Status. Colour coded rows.</td></tr>
+      <tr><td>6</td><td>Zone Heatmap</td><td>Graphical compliance status per zone. Optional: if site plan image provided, overlaid annotations.</td></tr>
+      <tr><td>7–N</td><td>Camera Test Records</td><td>One section per camera: camera details table, measured %R with gauge, achieved level badge, annotated test image(s), 7-step results table, facial scoring table (if applicable), notes.</td></tr>
+      <tr><td>N+1</td><td>Non-Compliance Summary</td><td>All cameras below their required standard. Required vs achieved delta. Specific remediation recommendations.</td></tr>
+      <tr><td>N+2</td><td>Facial Recognition Results</td><td>Consolidated face test results across all cameras. Aggregate accuracy score. Individual line-by-line records.</td></tr>
+      <tr><td>N+3</td><td>Declarations &amp; Sign-off</td><td>Engineer declaration text, engineer signature block, witness signature block, date, certification number, stamp/seal area.</td></tr>
+      <tr><td>N+4</td><td>Appendix A: Image Evidence</td><td>Full-size annotated images for all cameras. Evidence grid with filename, timestamp, camera reference, and measurement values.</td></tr>
+      <tr><td>Last</td><td>Appendix B: Standards Reference</td><td>SANS 10222-5-1-4 level definitions table, measurement methodology description, equipment calibration notes.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 07 AI LAYER -->
+<!-- ======================================================== -->
+<section class="section" id="ai">
+  <div class="section-label">07 — AI Integration</div>
+  <h2 class="section-title"><span class="icon">🤖</span> AI Layer Design</h2>
+  <p class="section-intro">Three distinct AI functions: (1) image analysis for automated measurement, (2) natural language report generation, (3) anomaly detection and remediation advice.</p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>AI Function 1 — Image Analysis</div>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:10px;">When a vision-capable model is available (Claude, GPT-4o), the image is sent alongside the Canvas-based measurements as a verification layer. The AI confirms or disputes the automated detection, catches edge cases (partial occlusion, unusual lighting), and provides a natural language description of what it sees in the frame.</p>
+      <div class="chips">
+        <span class="chip chip-purple">Vision model required</span>
+        <span class="chip chip-purple">Optional verification</span>
+        <span class="chip chip-purple">Fallback to Canvas-only</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>AI Function 2 — Report Writing</div>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:10px;">Structured audit data is serialised and sent to the AI with a template-specific system prompt. The AI generates the narrative sections: Executive Summary, Findings, Recommendations. The engineer can regenerate sections individually or the entire report.</p>
+      <div class="chips">
+        <span class="chip chip-purple">Claude API (preferred)</span>
+        <span class="chip chip-purple">Ollama (local)</span>
+        <span class="chip chip-purple">5 templates</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span>AI Function 3 — Anomaly Detection &amp; Advice</div>
+    <div class="two-col" style="margin-top:10px">
+      <div>
+        <p style="font-size:13px; color:var(--text2); line-height:1.7; margin-bottom:10px;">Automatically flags patterns that indicate problems beyond simple threshold failures:</p>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:7px;">
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Camera that barely meets standard likely to fail in poor weather — flag for note</li>
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Motion blur score high despite good lux → shutter speed issue recommendation</li>
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Focus degradation across multiple cameras from same manufacturer → firmware issue</li>
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> Facial recognition score very low for high %R → lens distortion or monitor calibration issue</li>
+        </ul>
+      </div>
+      <div>
+        <p style="font-size:13px; color:var(--text2); line-height:1.7; margin-bottom:10px;">Remediation suggestions are specific and actionable:</p>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:7px;">
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> "Reduce lens size from 6mm to 4mm to increase coverage and meet Recognition requirement"</li>
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> "Move camera 2m closer to reduce target distance from 18m to 16m"</li>
+          <li style="font-size:13px; color:var(--text2); padding-left:14px; position:relative;"><span style="position:absolute;left:0;color:var(--green)">▸</span> "Upgrade from 2MP to 4MP sensor to achieve Identification at current mounting position"</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout purple" style="margin-top:16px">
+    <span class="callout-icon">🔑</span>
+    <div class="callout-body">
+      <strong>API Key Management</strong>
+      <p>API keys are stored in the browser's IndexedDB (never sent to any server other than the configured AI endpoint). The app can optionally use a proxy URL so the key never appears in client-side code. Keys are masked in the settings UI after entry.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 08 DATA MODEL -->
+<!-- ======================================================== -->
+<section class="section" id="data">
+  <div class="section-label">08 — Data Architecture</div>
+  <h2 class="section-title"><span class="icon">🗄️</span> Data Model &amp; Storage</h2>
+
+  <div class="code-block"><span class="cm">// Core audit data structure (JSON schema)</span>
+{
+  <span class="st">"schemaVersion"</span>: <span class="st">"3.0"</span>,
+  <span class="st">"audit"</span>: {
+    <span class="st">"id"</span>: <span class="st">"uuid-v4"</span>,
+    <span class="st">"createdAt"</span>: <span class="st">"ISO8601"</span>,
+    <span class="st">"lastModified"</span>: <span class="st">"ISO8601"</span>,
+    <span class="st">"site"</span>: {
+      <span class="cm">/* 18 site fields including GPS */</span>
+      <span class="st">"activeStandard"</span>: <span class="st">"SANS 10222-5-1-4"</span>
+    },
+    <span class="st">"branding"</span>: {
+      <span class="st">"orgLogo"</span>: <span class="st">"base64..."</span>,
+      <span class="st">"clientLogo"</span>: <span class="st">"base64..."</span>
+    },
+    <span class="st">"cameras"</span>: [
+      {
+        <span class="st">"id"</span>: <span class="nm">1</span>,
+        <span class="st">"ref"</span>: <span class="st">"CAM-01"</span>,
+        <span class="cm">/* all existing camera fields */</span>
+        <span class="st">"images"</span>: {
+          <span class="st">"static"</span>:    { <span class="st">"original"</span>: <span class="st">"base64..."</span>, <span class="st">"annotated"</span>: <span class="st">"base64..."</span>, <span class="st">"measuredR"</span>: <span class="nm">78.4</span>, <span class="st">"confidence"</span>: <span class="nm">94</span>, <span class="st">"bbox"</span>: {} },
+          <span class="st">"smear"</span>:     { <span class="st">"original"</span>: <span class="st">"base64..."</span>, <span class="st">"blurIndex"</span>: <span class="nm">12.3</span>, <span class="st">"confidence"</span>: <span class="nm">88</span> },
+          <span class="st">"colour"</span>:    { <span class="st">"original"</span>: <span class="st">"base64..."</span>, <span class="st">"colourScore"</span>: <span class="nm">91</span>, <span class="st">"deviations"</span>: [] },
+          <span class="st">"face"</span>:      { <span class="st">"original"</span>: <span class="st">"base64..."</span>, <span class="st">"detectedFaces"</span>: [] }
+        },
+        <span class="st">"autoMeasurement"</span>: {
+          <span class="st">"measuredR"</span>: <span class="nm">78.4</span>,
+          <span class="st">"source"</span>: <span class="st">"canvas-analysis"</span>,
+          <span class="st">"confidence"</span>: <span class="nm">94</span>,
+          <span class="st">"engineerOverride"</span>: <span class="ky">null</span>
+        },
+        <span class="st">"auditSteps"</span>: [<span class="cm">/* 7 steps */</span>],
+        <span class="st">"faceLines"</span>: [<span class="cm">/* 10 face lines */</span>],
+        <span class="st">"aiAnalysis"</span>: {
+          <span class="st">"summary"</span>: <span class="st">"string"</span>,
+          <span class="st">"anomalies"</span>: [],
+          <span class="st">"recommendations"</span>: []
+        }
+      }
+    ],
+    <span class="st">"standards"</span>: [<span class="cm">/* SANS level definitions */</span>],
+    <span class="st">"auditStepDefs"</span>: [<span class="cm">/* 7 step definitions */</span>],
+    <span class="st">"aiReports"</span>: {
+      <span class="st">"fullAudit"</span>: <span class="st">"string"</span>,
+      <span class="st">"executive"</span>: <span class="st">"string"</span>,
+      <span class="st">"generatedAt"</span>: <span class="st">"ISO8601"</span>
+    },
+    <span class="st">"history"</span>: [
+      { <span class="st">"timestamp"</span>: <span class="st">"ISO8601"</span>, <span class="st">"summary"</span>: <span class="st">"string"</span>, <span class="st">"snapshot"</span>: <span class="st">"compressed-json"</span> }
+    ]
+  }
+}</div>
+
+  <div class="callout warn" style="margin-top:20px">
+    <span class="callout-icon">💾</span>
+    <div class="callout-body">
+      <strong>Storage Size Warning</strong>
+      <p>Base64 images inflate size by ~33%. A 30-camera audit with 4 images each at 1MB = ~160MB raw = ~215MB base64. IndexedDB supports up to 50–80% of available disk space but may be slow. Strategy: store full-res images externally (File System Access API with user-granted folder), only store thumbnails and annotated copies in IndexedDB. Provide clear storage usage indicator in settings.</p>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:16px">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Storage Tiers</div>
+      <table class="spec-table">
+        <tr><th>Data Type</th><th>Storage</th></tr>
+        <tr><td>Audit metadata &amp; measurements</td><td><code>IndexedDB</code></td></tr>
+        <tr><td>Thumbnails (200×150)</td><td><code>IndexedDB</code></td></tr>
+        <tr><td>Annotated images (720p)</td><td><code>IndexedDB</code></td></tr>
+        <tr><td>Original full-res images</td><td><code>File System API</code> (user folder)</td></tr>
+        <tr><td>History snapshots</td><td><code>IndexedDB</code> (compressed)</td></tr>
+        <tr><td>AI reports text</td><td><code>IndexedDB</code></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>Export Formats</div>
+      <table class="spec-table">
+        <tr><th>Format</th><th>Contents</th></tr>
+        <tr><td><code>.json</code></td><td>Full audit data (importable)</td></tr>
+        <tr><td><code>.pdf</code></td><td>Professional report + images</td></tr>
+        <tr><td><code>.docx</code></td><td>Editable Word report</td></tr>
+        <tr><td><code>.csv</code></td><td>Camera results table</td></tr>
+        <tr><td><code>.zip</code></td><td>All of the above + original images</td></tr>
+        <tr><td><code>.html</code></td><td>Self-contained standalone report</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- 09 ARCHITECTURE -->
+<!-- ======================================================== -->
+<section class="section" id="architecture">
+  <div class="section-label">09 — Technical Architecture</div>
+  <h2 class="section-title"><span class="icon">🏗️</span> System Architecture</h2>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div class="callout-body">
+      <strong>100% Client-Side — No Backend Required</strong>
+      <p>The entire webapp runs as a single HTML file (or small file bundle) with zero server dependencies for core functionality. It can run from a USB stick, local file system, or any static hosting. The only external network calls are optional AI API requests.</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">Technology Stack</h3>
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="spec-table" style="margin:0">
+      <tr><th>Layer</th><th>Technology</th><th>Purpose</th><th>CDN Available</th></tr>
+      <tr><td>UI Framework</td><td>Vanilla JS + HTML/CSS</td><td>Zero-dependency, runs anywhere, like existing v2</td><td>N/A</td></tr>
+      <tr><td>Image Processing</td><td>Canvas API + WebWorkers</td><td>Client-side %R detection and image annotation</td><td>N/A (native)</td></tr>
+      <tr><td>PDF Generation</td><td>jsPDF + AutoTable</td><td>Professional report PDF with embedded images</td><td>✅ cdnjs</td></tr>
+      <tr><td>Word Export</td><td>docx.js</td><td>Generate .docx Word reports</td><td>✅ unpkg</td></tr>
+      <tr><td>Charts</td><td>Chart.js</td><td>Level distribution and compliance charts</td><td>✅ cdnjs</td></tr>
+      <tr><td>Storage</td><td>IndexedDB (native)</td><td>Persistent data storage in browser</td><td>N/A (native)</td></tr>
+      <tr><td>File System</td><td>File System Access API</td><td>Folder watching and large image storage</td><td>N/A (native)</td></tr>
+      <tr><td>AI — Local</td><td>Ollama REST API</td><td>Local LLM for report generation (existing)</td><td>User-hosted</td></tr>
+      <tr><td>AI — Cloud</td><td>Anthropic / OpenAI API</td><td>Cloud LLM option with vision support</td><td>API endpoint</td></tr>
+      <tr><td>Compression</td><td>LZString or CompressionStream</td><td>Compress history snapshots before IndexedDB storage</td><td>✅ cdnjs</td></tr>
+      <tr><td>QR Codes</td><td>QRCode.js</td><td>GPS location QR on report cover page</td><td>✅ cdnjs</td></tr>
+      <tr><td>ZIP</td><td>JSZip</td><td>Bundled export of report + images + JSON</td><td>✅ cdnjs</td></tr>
+    </table>
+  </div>
+
+  <h3 style="font-family:var(--display); font-size:16px; color:var(--text); margin:24px 0 14px; font-weight:700;">File Structure</h3>
+
+  <div class="two-col">
+    <div class="code-block"><span class="cm">// Option A: Single-file (like v2)</span>
+<span class="st">rotakin_v3.html</span>
+  <span class="cm">├── &lt;style&gt; All CSS</span>
+  <span class="cm">├── &lt;script&gt; Core app</span>
+  <span class="cm">├── &lt;script&gt; Image pipeline</span>
+  <span class="cm">├── &lt;script&gt; Report generator</span>
+  <span class="cm">└── &lt;script&gt; AI module</span>
+
+<span class="cm">// Inline CDN scripts loaded at runtime</span>
+<span class="cm">// Workers defined as Blob URLs</span>
+<span class="cm">// Total target: &lt; 500KB minified</span></div>
+    <div class="code-block"><span class="cm">// Option B: Multi-file bundle</span>
+<span class="st">rotakin-v3/</span>
+  <span class="nm">index.html</span>
+  <span class="nm">css/</span>
+    <span class="cm">main.css</span>
+  <span class="nm">js/</span>
+    <span class="cm">app.js       (state, tabs, utils)</span>
+    <span class="cm">cameras.js   (camera management)</span>
+    <span class="cm">imaging.js   (image pipeline)</span>
+    <span class="cm">analysis.js  (canvas measurement)</span>
+    <span class="cm">report.js    (PDF generation)</span>
+    <span class="cm">ai.js        (AI integration)</span>
+    <span class="cm">storage.js   (IndexedDB layer)</span>
+  <span class="nm">workers/</span>
+    <span class="cm">imgworker.js (WebWorker)</span></div>
+  </div>
+
+  <p style="font-size:13px; color:var(--text2); margin-top:14px;">Recommendation: <strong>Option A</strong> for portability and USB-stick deployment matching v2 workflow. Option B if the project grows to need a build pipeline (Vite/Rollup).</p>
+</section>
+
+<!-- ======================================================== -->
+<!-- 10 ROADMAP -->
+<!-- ======================================================== -->
+<section class="section" id="roadmap">
+  <div class="section-label">10 — Development Roadmap</div>
+  <h2 class="section-title"><span class="icon">🗺️</span> Build Phases &amp; Priorities</h2>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot p1"></div>
+      <div class="tl-phase p1">Phase 1 — Foundation</div>
+      <div class="tl-title">Core Enhancements to v2</div>
+      <ul class="tl-tasks">
+        <li>Migrate all existing v2 functionality intact into v3 codebase structure</li>
+        <li>Upgrade PDF report from print-stylesheet to jsPDF engine</li>
+        <li>Add multi-image gallery per camera (static, smear, colour, face)</li>
+        <li>Implement batch camera import from CSV</li>
+        <li>Add camera sort/filter/search to the camera list</li>
+        <li>Enhance summary dashboard with Chart.js visualisations</li>
+        <li>Add duplicate camera, camera health indicator, and status dot</li>
+      </ul>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot p2"></div>
+      <div class="tl-phase p2">Phase 2 — Image Pipeline MVP</div>
+      <div class="tl-title">Folder Ingestion &amp; Basic Analysis</div>
+      <ul class="tl-tasks">
+        <li>Build folder drag-and-drop zone with file type validation</li>
+        <li>Image queue UI with processing status cards</li>
+        <li>Implement filename pattern parser for auto-assignment</li>
+        <li>Canvas-based Rotakin figure detection algorithm</li>
+        <li>%R measurement from detected figure bounding box</li>
+        <li>Confidence scoring and low-confidence flagging</li>
+        <li>WebWorker threading for non-blocking batch processing</li>
+        <li>Auto-populate %R fields and step results from image analysis</li>
+      </ul>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot p3"></div>
+      <div class="tl-phase p3">Phase 3 — Annotation &amp; Reporting</div>
+      <div class="tl-title">Visual Tools &amp; Professional Reports</div>
+      <ul class="tl-tasks">
+        <li>Image annotation overlay renderer (bounding box, ruler, level badge)</li>
+        <li>Interactive annotation viewer with zoom/pan</li>
+        <li>All 5 report templates in jsPDF</li>
+        <li>Evidence image grid in PDF appendix</li>
+        <li>DOCX export via docx.js</li>
+        <li>ZIP export bundling all formats + original images</li>
+        <li>Audit history &amp; version timeline module</li>
+        <li>Repeat visit comparison view</li>
+      </ul>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot p4"></div>
+      <div class="tl-phase p4">Phase 4 — AI &amp; Polish</div>
+      <div class="tl-title">Intelligence Layer &amp; Production Quality</div>
+      <ul class="tl-tasks">
+        <li>Claude API integration for vision-based image verification</li>
+        <li>AI anomaly detection and remediation suggestion engine</li>
+        <li>Face card recognition for automatic facial scoring population</li>
+        <li>Advanced image pre-processing controls (brightness, threshold)</li>
+        <li>Light/dark theme toggle with full CSS variable implementation</li>
+        <li>Mobile-responsive layout for tablet field use</li>
+        <li>Engineer profile system with multi-user support</li>
+        <li>Comprehensive settings panel with all config options</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-title"><span class="dot" style="background:var(--gold)"></span>Key Decisions Before Build Starts</div>
+    <table class="spec-table" style="margin-top:8px">
+      <tr><th>Decision</th><th>Options</th><th>Recommendation</th></tr>
+      <tr><td>Rotakin Detection Algorithm</td><td>Pure Canvas pixel analysis vs. TensorFlow.js object detection model</td><td>Start with Canvas (simpler, no model loading). Add TF.js model as optional enhancement in Phase 4.</td></tr>
+      <tr><td>File Architecture</td><td>Single HTML file vs. multi-file bundle</td><td>Single file for maximum portability, matching current workflow. Refactor to bundle if codebase exceeds 3000 lines.</td></tr>
+      <tr><td>PDF Library</td><td>jsPDF vs. pdfmake vs. puppeteer (server)</td><td>jsPDF + AutoTable — no server needed, mature library, CDN-loadable.</td></tr>
+      <tr><td>Image Storage</td><td>IndexedDB only vs. File System Access API</td><td>Thumbnails + annotated in IndexedDB, originals via File System API with graceful fallback to IndexedDB for small audits.</td></tr>
+      <tr><td>AI Primary Backend</td><td>Ollama (existing) vs. Claude API vs. user choice</td><td>User choice via settings. Default to Ollama for local operation. Claude API for cloud/vision features.</td></tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ======================================================== -->
+<!-- 11 INTERACTIVE PHASED ROADMAP -->
+<!-- ======================================================== -->
+<section class="section" id="phases">
+  <div class="section-label">11 — Interactive Phased Roadmap</div>
+  <h2 class="section-title"><span class="icon">✅</span> Development Phases — Task Tracker</h2>
+  <p class="section-intro">Click each phase to explore its tasks. Tick the checkboxes to track progress as you build. Each phase has a clear dependency gate — complete it before moving to the next.</p>
+
+  <div class="card" style="padding:0; overflow:hidden; border:1px solid var(--border);">
+  <style>
+  .rm-root { padding: 24px; font-family: var(--body); }
+  .rm-tl-bar { display:flex; gap:0; margin-bottom:20px; border-radius:8px; overflow:hidden; height:34px; border:1px solid var(--border); }
+  .rm-tl-seg { display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; cursor:pointer; white-space:nowrap; overflow:hidden; font-family:var(--mono); letter-spacing:.5px; transition:opacity .2s; }
+  .rm-tl-seg:hover { opacity:.82; }
+  .rm-ov-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+  .rm-ov-card { border-radius:8px; border:1px solid var(--border); padding:14px 16px; cursor:pointer; transition:all .2s; background:var(--surface); }
+  .rm-ov-card:hover { border-color:var(--border2); }
+  .rm-ov-card.active { border-width:2px; }
+  .rm-ov-card[data-rp="0"].active { border-color:#c2410c; background:rgba(194,65,12,0.08); }
+  .rm-ov-card[data-rp="1"].active { border-color:#0369a1; background:rgba(3,105,161,0.08); }
+  .rm-ov-card[data-rp="2"].active { border-color:#0f766e; background:rgba(15,118,110,0.08); }
+  .rm-ov-card[data-rp="3"].active { border-color:#7c3aed; background:rgba(124,58,237,0.08); }
+  .rm-ov-num { font-family:var(--mono); font-size:10px; font-weight:600; margin-bottom:5px; letter-spacing:1px; }
+  .rm-ov-card[data-rp="0"] .rm-ov-num { color:#ff6b35; }
+  .rm-ov-card[data-rp="1"] .rm-ov-num { color:#00c2ff; }
+  .rm-ov-card[data-rp="2"] .rm-ov-num { color:#10d98a; }
+  .rm-ov-card[data-rp="3"] .rm-ov-num { color:#a78bfa; }
+  .rm-ov-title { font-family:var(--display); font-size:13px; font-weight:700; color:var(--text); margin-bottom:5px; line-height:1.3; }
+  .rm-ov-dur { font-size:11px; color:var(--text2); font-family:var(--mono); }
+  .rm-panel { display:none; }
+  .rm-panel.active { display:block; }
+  .rm-ph-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; padding:18px 20px; border-radius:8px; border:1px solid; }
+  .rm-ph-hdr[data-rp="0"] { border-color:rgba(194,65,12,0.3); background:rgba(194,65,12,0.05); }
+  .rm-ph-hdr[data-rp="1"] { border-color:rgba(3,105,161,0.3); background:rgba(3,105,161,0.05); }
+  .rm-ph-hdr[data-rp="2"] { border-color:rgba(15,118,110,0.3); background:rgba(15,118,110,0.05); }
+  .rm-ph-hdr[data-rp="3"] { border-color:rgba(124,58,237,0.3); background:rgba(124,58,237,0.05); }
+  .rm-ph-badge { display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700; padding:3px 12px; border-radius:20px; margin-bottom:8px; color:#fff; letter-spacing:.5px; }
+  .rm-ph-title { font-family:var(--display); font-size:17px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .rm-ph-sub { font-size:13px; color:var(--text2); line-height:1.6; max-width:500px; }
+  .rm-ph-meta { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
+  .rm-ph-n { font-family:var(--display); font-size:28px; font-weight:800; }
+  .rm-ph-l { font-size:11px; color:var(--text3); font-family:var(--mono); }
+  .rm-prog-wrap { margin-bottom:18px; }
+  .rm-prog-lbl { display:flex; justify-content:space-between; font-size:11px; color:var(--text3); font-family:var(--mono); margin-bottom:5px; }
+  .rm-prog-track { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .rm-prog-fill { height:100%; border-radius:3px; transition:width .4s ease; }
+  .rm-tasks-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+  .rm-task { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; cursor:pointer; transition:all .2s; position:relative; }
+  .rm-task:hover { border-color:var(--border2); background:rgba(255,255,255,0.03); }
+  .rm-task.done .rm-task-title { text-decoration:line-through; color:var(--text3); }
+  .rm-task-cat { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .rm-task-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:5px; line-height:1.35; font-family:var(--display); }
+  .rm-task-desc { font-size:12px; color:var(--text2); line-height:1.55; }
+  .rm-task-meta { display:flex; gap:7px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  .rm-tag { font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid; white-space:nowrap; }
+  .rm-check { position:absolute; top:11px; right:12px; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border2); background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all .2s; color:transparent; font-weight:900; }
+  .rm-task.done .rm-check { background:rgba(16,217,138,0.15); border-color:#10d98a; color:#10d98a; }
+  .rm-deliverables { background:var(--surface2); border-radius:8px; padding:14px 18px; margin-bottom:14px; border:1px solid var(--border); }
+  .rm-del-title { font-family:var(--mono); font-size:10px; font-weight:600; color:var(--text3); margin-bottom:10px; letter-spacing:1px; text-transform:uppercase; }
+  .rm-del-list { display:flex; flex-wrap:wrap; gap:10px; }
+  .rm-del-item { font-size:12px; color:var(--text2); display:flex; align-items:center; gap:6px; }
+  .rm-del-item::before { content:'📦'; font-size:12px; }
+  .rm-dep-note { border:1px solid var(--border); border-radius:8px; padding:12px 16px; font-size:12px; color:var(--text2); line-height:1.6; display:flex; gap:10px; align-items:flex-start; }
+  .rm-dep-icon { font-size:16px; flex-shrink:0; }
+  @media (max-width:700px) {
+    .rm-ov-strip { grid-template-columns:1fr 1fr; }
+    .rm-tasks-grid { grid-template-columns:1fr; }
+  }
+  </style>
+
+  <div class="rm-root">
+
+    <!-- TIMELINE BAR -->
+    <div class="rm-tl-bar">
+      <div class="rm-tl-seg" data-rp="0" style="width:22%;background:#c2410c" onclick="rmSwitch(0)">PHASE 1</div>
+      <div class="rm-tl-seg" data-rp="1" style="width:28%;background:#0369a1" onclick="rmSwitch(1)">PHASE 2</div>
+      <div class="rm-tl-seg" data-rp="2" style="width:28%;background:#0f766e" onclick="rmSwitch(2)">PHASE 3</div>
+      <div class="rm-tl-seg" data-rp="3" style="width:22%;background:#7c3aed" onclick="rmSwitch(3)">PHASE 4</div>
+    </div>
+
+    <!-- OVERVIEW CARDS -->
+    <div class="rm-ov-strip">
+      <div class="rm-ov-card active" data-rp="0" onclick="rmSwitch(0)">
+        <div class="rm-ov-num">Phase 1</div>
+        <div class="rm-ov-title">Foundation</div>
+        <div class="rm-ov-dur">~3–4 weeks · 8 tasks</div>
+      </div>
+      <div class="rm-ov-card" data-rp="1" onclick="rmSwitch(1)">
+        <div class="rm-ov-num">Phase 2</div>
+        <div class="rm-ov-title">Image pipeline</div>
+        <div class="rm-ov-dur">~4–5 weeks · 8 tasks</div>
+      </div>
+      <div class="rm-ov-card" data-rp="2" onclick="rmSwitch(2)">
+        <div class="rm-ov-num">Phase 3</div>
+        <div class="rm-ov-title">Annotation &amp; reports</div>
+        <div class="rm-ov-dur">~4–5 weeks · 8 tasks</div>
+      </div>
+      <div class="rm-ov-card" data-rp="3" onclick="rmSwitch(3)">
+        <div class="rm-ov-num">Phase 4</div>
+        <div class="rm-ov-title">AI &amp; polish</div>
+        <div class="rm-ov-dur">~3–4 weeks · 8 tasks</div>
+      </div>
+    </div>
+
+    <!-- PHASE 1 -->
+    <div class="rm-panel active" id="rm-panel-0">
+      <div class="rm-ph-hdr" data-rp="0">
+        <div>
+          <span class="rm-ph-badge" style="background:#c2410c">Phase 1 — Foundation</span>
+          <div class="rm-ph-title">Core upgrades to v2</div>
+          <div class="rm-ph-sub">Migrate and strengthen everything in the existing tool. Ship a production-ready v2.5 with jsPDF output, enhanced camera management, and a chart-based summary dashboard — before writing any image analysis code.</div>
+        </div>
+        <div class="rm-ph-meta">
+          <div class="rm-ph-n" style="color:#ff6b35" id="rm-n0">0</div>
+          <div class="rm-ph-l">of 8 done</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">~3–4 weeks</div>
+        </div>
+      </div>
+      <div class="rm-prog-wrap">
+        <div class="rm-prog-lbl"><span>Progress</span><span id="rm-pct0">0%</span></div>
+        <div class="rm-prog-track"><div class="rm-prog-fill" id="rm-bar0" style="width:0%;background:#c2410c"></div></div>
+      </div>
+      <div class="rm-tasks-grid" id="rm-tg0"></div>
+      <div class="rm-deliverables">
+        <div class="rm-del-title">End-of-phase deliverables</div>
+        <div class="rm-del-list">
+          <span class="rm-del-item">rotakin_v3.html (v2 feature-parity)</span>
+          <span class="rm-del-item">jsPDF report engine</span>
+          <span class="rm-del-item">Chart.js dashboard</span>
+          <span class="rm-del-item">CSV camera bulk import</span>
+        </div>
+      </div>
+      <div class="rm-dep-note"><span class="rm-dep-icon">🔓</span><span><strong style="color:var(--text)">Phase 1 unlocks:</strong> A stable, tested base. Shipping a working v2.5 gives the team something usable immediately while Phases 2–4 are in progress.</span></div>
+    </div>
+
+    <!-- PHASE 2 -->
+    <div class="rm-panel" id="rm-panel-1">
+      <div class="rm-ph-hdr" data-rp="1">
+        <div>
+          <span class="rm-ph-badge" style="background:#0369a1">Phase 2 — Image Pipeline MVP</span>
+          <div class="rm-ph-title">Folder ingestion and %R auto-measurement</div>
+          <div class="rm-ph-sub">The core innovation of v3. Engineers drop a folder of camera screenshots; the app detects the Rotakin figure, measures %R, and pre-fills all camera records. All processing runs client-side in WebWorkers — no server needed.</div>
+        </div>
+        <div class="rm-ph-meta">
+          <div class="rm-ph-n" style="color:#00c2ff" id="rm-n1">0</div>
+          <div class="rm-ph-l">of 8 done</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">~4–5 weeks</div>
+        </div>
+      </div>
+      <div class="rm-prog-wrap">
+        <div class="rm-prog-lbl"><span>Progress</span><span id="rm-pct1">0%</span></div>
+        <div class="rm-prog-track"><div class="rm-prog-fill" id="rm-bar1" style="width:0%;background:#0369a1"></div></div>
+      </div>
+      <div class="rm-tasks-grid" id="rm-tg1"></div>
+      <div class="rm-deliverables">
+        <div class="rm-del-title">End-of-phase deliverables</div>
+        <div class="rm-del-list">
+          <span class="rm-del-item">Folder drop zone module</span>
+          <span class="rm-del-item">Canvas %R analysis engine</span>
+          <span class="rm-del-item">Confidence scoring system</span>
+          <span class="rm-del-item">Multi-image gallery per camera</span>
+        </div>
+      </div>
+      <div class="rm-dep-note"><span class="rm-dep-icon">🔓</span><span><strong style="color:var(--text)">Phase 2 unlocks:</strong> The first end-to-end automated test run. Drop a folder, watch %R values populate, and review results — even before annotated images or formal reports exist.</span></div>
+    </div>
+
+    <!-- PHASE 3 -->
+    <div class="rm-panel" id="rm-panel-2">
+      <div class="rm-ph-hdr" data-rp="2">
+        <div>
+          <span class="rm-ph-badge" style="background:#0f766e">Phase 3 — Annotation &amp; Reporting</span>
+          <div class="rm-ph-title">Visual evidence trail and professional PDF output</div>
+          <div class="rm-ph-sub">Transform raw measurements into a polished evidence package. Every camera gets an annotated image with bounding box and ruler overlay. The report engine produces a SANS-compliant PDF with embedded images, cover page, and signature blocks.</div>
+        </div>
+        <div class="rm-ph-meta">
+          <div class="rm-ph-n" style="color:#10d98a" id="rm-n2">0</div>
+          <div class="rm-ph-l">of 8 done</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">~4–5 weeks</div>
+        </div>
+      </div>
+      <div class="rm-prog-wrap">
+        <div class="rm-prog-lbl"><span>Progress</span><span id="rm-pct2">0%</span></div>
+        <div class="rm-prog-track"><div class="rm-prog-fill" id="rm-bar2" style="width:0%;background:#0f766e"></div></div>
+      </div>
+      <div class="rm-tasks-grid" id="rm-tg2"></div>
+      <div class="rm-deliverables">
+        <div class="rm-del-title">End-of-phase deliverables</div>
+        <div class="rm-del-list">
+          <span class="rm-del-item">Annotated image viewer</span>
+          <span class="rm-del-item">5 jsPDF report templates</span>
+          <span class="rm-del-item">DOCX export via docx.js</span>
+          <span class="rm-del-item">ZIP evidence bundle</span>
+          <span class="rm-del-item">Audit history timeline</span>
+        </div>
+      </div>
+      <div class="rm-dep-note"><span class="rm-dep-icon">🔓</span><span><strong style="color:var(--text)">Phase 3 unlocks:</strong> The first submission-ready audit report — the milestone where the tool becomes genuinely useful for real SANS 10222-5-1-4 compliance submissions.</span></div>
+    </div>
+
+    <!-- PHASE 4 -->
+    <div class="rm-panel" id="rm-panel-3">
+      <div class="rm-ph-hdr" data-rp="3">
+        <div>
+          <span class="rm-ph-badge" style="background:#7c3aed">Phase 4 — AI &amp; Polish</span>
+          <div class="rm-ph-title">Intelligence layer and production quality</div>
+          <div class="rm-ph-sub">Layer AI on top of the working system. Claude/Ollama verifies image measurements, flags anomalies, and drafts report narratives. The UI gets a light/dark theme, mobile layout, and engineer profile management.</div>
+        </div>
+        <div class="rm-ph-meta">
+          <div class="rm-ph-n" style="color:#a78bfa" id="rm-n3">0</div>
+          <div class="rm-ph-l">of 8 done</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">~3–4 weeks</div>
+        </div>
+      </div>
+      <div class="rm-prog-wrap">
+        <div class="rm-prog-lbl"><span>Progress</span><span id="rm-pct3">0%</span></div>
+        <div class="rm-prog-track"><div class="rm-prog-fill" id="rm-bar3" style="width:0%;background:#7c3aed"></div></div>
+      </div>
+      <div class="rm-tasks-grid" id="rm-tg3"></div>
+      <div class="rm-deliverables">
+        <div class="rm-del-title">End-of-phase deliverables</div>
+        <div class="rm-del-list">
+          <span class="rm-del-item">Claude API integration</span>
+          <span class="rm-del-item">Face card recognition</span>
+          <span class="rm-del-item">Light/dark theme</span>
+          <span class="rm-del-item">Mobile-responsive layout</span>
+          <span class="rm-del-item">Full v3.0 release</span>
+        </div>
+      </div>
+      <div class="rm-dep-note"><span class="rm-dep-icon">🏁</span><span><strong style="color:var(--text)">Phase 4 completes:</strong> The full v3 vision. AI-assisted measurement verification, automated anomaly detection, face recognition scoring, and a polished interface ready for daily field use.</span></div>
+    </div>
+
+  </div><!-- /rm-root -->
+  </div><!-- /card -->
+
+  <script>
+  (function(){
+    const RM_TASKS = [
+      [
+        {cat:"PDF",       title:"jsPDF report engine",           desc:"Replace print-stylesheet PDF with jsPDF + AutoTable. Pixel-perfect layout, consistent pagination, embedded images at correct DPI.", effort:"High",   type:"Core"},
+        {cat:"UI",        title:"Camera sort, filter & search",  desc:"Sort cameras by ID, zone, or compliance level. Filter by standard and status. Instant text search by camera ref.", effort:"Medium", type:"Core"},
+        {cat:"Data",      title:"CSV camera bulk import",        desc:"Parse a CSV of camera details to create records in bulk. Provide a downloadable template. Saves hours on large-site audits.", effort:"Medium", type:"Core"},
+        {cat:"UI",        title:"Camera health indicator",       desc:"Each camera header shows a status dot: green = all steps complete, yellow = flagged, red = below minimum.", effort:"Low",    type:"Enhancement"},
+        {cat:"UI",        title:"Duplicate camera action",       desc:"Clone a camera record with images detached. Useful for multiple identical cameras in the same zone.", effort:"Low",    type:"Enhancement"},
+        {cat:"Dashboard", title:"Chart.js summary dashboard",    desc:"Level distribution donut, zone compliance table, non-compliance list with delta. Replace the plain summary boxes.", effort:"High",   type:"Enhancement"},
+        {cat:"Site",      title:"Audit configuration panel",     desc:"Select active standard (SANS / BS EN 50132-7 / Custom) from the site details tab. Drives all thresholds app-wide.", effort:"Medium", type:"Enhancement"},
+        {cat:"Site",      title:"Load from previous audit",      desc:"Import site details from a prior JSON export to pre-populate fields for repeat site visits.", effort:"Low",    type:"Enhancement"},
+      ],
+      [
+        {cat:"Ingestion",  title:"Folder drag-and-drop zone",      desc:"Accept an entire folder via webkitdirectory or DataTransfer API. Show file count, detected image count, and total size on hover.", effort:"Medium", type:"New"},
+        {cat:"Ingestion",  title:"Filename pattern parser",         desc:"Parse filenames like CAM-01_static.jpg to auto-assign images to cameras and step types. Unrecognised files go to an unassigned tray.", effort:"Medium", type:"New"},
+        {cat:"Processing", title:"Canvas %R detection engine",      desc:"Edge detection on image pixel data to find the Rotakin figure bounding box. Calculate figure height ÷ frame height × 100.", effort:"High",   type:"New"},
+        {cat:"Processing", title:"WebWorker threading",             desc:"Run image analysis in workers sized to navigator.hardwareConcurrency. Progress bar with per-image status and ETA. Non-blocking UI.", effort:"High",   type:"New"},
+        {cat:"Processing", title:"Confidence scoring & flags",      desc:"Score each automated measurement 0–100%. Flag yellow below 70%, red below 40%. Engineer must review flagged results.", effort:"Medium", type:"New"},
+        {cat:"UI",         title:"Image processing queue UI",       desc:"Grid of thumbnail cards with filename, detected camera assignment, step type, and processing status badges.", effort:"Medium", type:"New"},
+        {cat:"UI",         title:"Manual assignment drag tray",     desc:"Drag unassigned images to camera slots. Dropdown on each image card as an alternative to dragging.", effort:"Medium", type:"New"},
+        {cat:"Camera",     title:"Auto-populate camera records",    desc:"Push measured %R, step results, and image thumbnails into camera records when analysis completes. Highlight auto-filled values in yellow.", effort:"Medium", type:"New"},
+      ],
+      [
+        {cat:"Viewer",  title:"Image annotation renderer",        desc:"Draw bounding box, %R measurement ruler, level badge, and confidence score overlay onto a copy of each analysed image.", effort:"High",   type:"New"},
+        {cat:"Viewer",  title:"Annotation viewer with zoom/pan",  desc:"Click any processed image to open full viewer: original vs annotated comparison, zoom/pan controls, measurement values panel.", effort:"High",   type:"New"},
+        {cat:"Report",  title:"SANS Full Audit Report template",  desc:"Cover page → TOC → site details → executive summary → compliance table → per-camera records → sign-off → image appendix.", effort:"High",   type:"New"},
+        {cat:"Report",  title:"Executive Summary template",       desc:"2-page board-level PDF: site, audit date, KPI boxes, top findings, recommended actions. No technical detail.", effort:"Medium", type:"New"},
+        {cat:"Report",  title:"3 additional report templates",    desc:"Technical Appendix, SAPS Forensic Exhibit, and Remediation Action Plan — each with configurable sections.", effort:"High",   type:"New"},
+        {cat:"Export",  title:"DOCX export via docx.js",          desc:"Generate editable Word documents from audit data client-side. Same structure as the SANS PDF template.", effort:"Medium", type:"New"},
+        {cat:"Export",  title:"ZIP evidence bundle",              desc:"JSZip bundle containing PDF, DOCX, CSV, JSON, and original images. One-click download of the complete audit package.", effort:"Medium", type:"New"},
+        {cat:"History", title:"Audit history & version timeline", desc:"Timestamped snapshots on every save. Visual timeline with change summaries. Repeat-visit comparison view.", effort:"High",   type:"New"},
+      ],
+      [
+        {cat:"AI",      title:"Claude API integration",           desc:"Vision-capable model verifies Canvas measurements, confirms Rotakin detection, and flags edge cases like partial occlusion.", effort:"High",   type:"AI"},
+        {cat:"AI",      title:"AI anomaly detection",             desc:"Flag patterns beyond threshold failures: camera barely meeting standard, high blur despite good lux, facial score low for high %R.", effort:"High",   type:"AI"},
+        {cat:"AI",      title:"AI remediation suggestions",       desc:"Specific actionable advice: 'Reduce lens from 6mm to 4mm', 'Move camera 2m closer', 'Upgrade from 2MP to 4MP sensor'.", effort:"Medium", type:"AI"},
+        {cat:"AI",      title:"Face card recognition",            desc:"Upload face card images from the Rotakin set. AI identifies face numbers and auto-fills technician record columns.", effort:"High",   type:"AI"},
+        {cat:"UI",      title:"Light/dark theme toggle",          desc:"Full CSS variable implementation. User preference persisted in IndexedDB. Applies across all tabs and the generated report cover.", effort:"Medium", type:"Polish"},
+        {cat:"UI",      title:"Mobile-responsive layout",         desc:"Tablet-first layout for field use. Camera cards reflow to single column. Image viewer works with touch pinch-zoom.", effort:"Medium", type:"Polish"},
+        {cat:"Settings",title:"Engineer profile system",          desc:"Store multiple engineer profiles (name, ID, cert number). Select active engineer per audit session.", effort:"Medium", type:"Polish"},
+        {cat:"Settings",title:"Image pre-processing controls",    desc:"Per-image brightness, contrast, and threshold sliders. Re-run analysis with adjusted parameters for difficult images.", effort:"Medium", type:"Polish"},
+      ],
+    ];
+
+    const EFFORT_STYLE = {
+      High:   {color:'#ff4757', bg:'rgba(255,71,87,0.1)',   border:'rgba(255,71,87,0.35)'},
+      Medium: {color:'#f0b429', bg:'rgba(240,180,41,0.1)',  border:'rgba(240,180,41,0.35)'},
+      Low:    {color:'#10d98a', bg:'rgba(16,217,138,0.1)',  border:'rgba(16,217,138,0.35)'},
+    };
+    const TYPE_STYLE = {
+      New:         {color:'#00c2ff', bg:'rgba(0,194,255,0.08)',   border:'rgba(0,194,255,0.3)'},
+      Core:        {color:'#8899b4', bg:'rgba(136,153,180,0.08)', border:'rgba(136,153,180,0.25)'},
+      Enhancement: {color:'#8899b4', bg:'rgba(136,153,180,0.08)', border:'rgba(136,153,180,0.25)'},
+      AI:          {color:'#a78bfa', bg:'rgba(167,139,250,0.1)',  border:'rgba(167,139,250,0.35)'},
+      Polish:      {color:'#8899b4', bg:'rgba(136,153,180,0.08)', border:'rgba(136,153,180,0.25)'},
+    };
+    const CAT_COLOR = {
+      PDF:'#ff6b35', UI:'#00c2ff', Data:'#10d98a', Dashboard:'#a78bfa', Site:'#8899b4',
+      Ingestion:'#ff6b35', Processing:'#00c2ff', Camera:'#10d98a',
+      Viewer:'#ff6b35', Report:'#00c2ff', Export:'#10d98a', History:'#a78bfa',
+      AI:'#a78bfa', Settings:'#10d98a'
+    };
+
+    const state = RM_TASKS.map(p => p.map(() => false));
+
+    function buildRmTasks() {
+      RM_TASKS.forEach((phase, pi) => {
+        const grid = document.getElementById('rm-tg' + pi);
+        phase.forEach((t, ti) => {
+          const es = EFFORT_STYLE[t.effort] || EFFORT_STYLE.Medium;
+          const ts = TYPE_STYLE[t.type] || TYPE_STYLE.Core;
+          const cc = CAT_COLOR[t.cat] || '#8899b4';
+          const card = document.createElement('div');
+          card.className = 'rm-task';
+          card.id = 'rm-tc-' + pi + '-' + ti;
+          card.innerHTML =
+            '<div class="rm-task-cat" style="color:' + cc + '">' + t.cat + '</div>' +
+            '<div class="rm-task-title">' + t.title + '</div>' +
+            '<div class="rm-task-desc">' + t.desc + '</div>' +
+            '<div class="rm-task-meta">' +
+              '<span class="rm-tag" style="color:' + es.color + ';background:' + es.bg + ';border-color:' + es.border + '">' + t.effort + ' effort</span>' +
+              '<span class="rm-tag" style="color:' + ts.color + ';background:' + ts.bg + ';border-color:' + ts.border + '">' + t.type + '</span>' +
+            '</div>' +
+            '<div class="rm-check" id="rm-chk-' + pi + '-' + ti + '" onclick="rmToggle(event,' + pi + ',' + ti + ')" title="Mark complete">✓</div>';
+          grid.appendChild(card);
+        });
+      });
+    }
+
+    window.rmToggle = function(e, pi, ti) {
+      e.stopPropagation();
+      state[pi][ti] = !state[pi][ti];
+      document.getElementById('rm-tc-' + pi + '-' + ti).classList.toggle('done', state[pi][ti]);
+      const done = state[pi].filter(Boolean).length;
+      const pct = Math.round((done / state[pi].length) * 100);
+      document.getElementById('rm-n' + pi).textContent = done;
+      document.getElementById('rm-pct' + pi).textContent = pct + '%';
+      document.getElementById('rm-bar' + pi).style.width = pct + '%';
+    };
+
+    window.rmSwitch = function(pi) {
+      document.querySelectorAll('.rm-panel').forEach((p, i) => p.classList.toggle('active', i === pi));
+      document.querySelectorAll('.rm-ov-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.rp) === pi));
+    };
+
+    buildRmTasks();
+  })();
+  </script>
+
+</section>
+
+<!-- DIVIDER -->
+<hr class="divider" style="margin-top:60px">
+
+<!-- QUICK REF -->
+<div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; padding: 24px 0;">
+  <div>
+    <div class="section-label" style="margin-bottom:8px">Key Standards</div>
+    <div class="chips">
+      <span class="chip chip-gold">SANS 10222-5-1-4</span>
+      <span class="chip chip-blue">BS EN 50132-7</span>
+      <span class="chip chip-orange">NPSA / PSDB</span>
+      <span class="chip chip-green">Custom Configurable</span>
+    </div>
+  </div>
+  <div>
+    <div class="section-label" style="margin-bottom:8px">Compliance Levels</div>
+    <div class="chips">
+      <span class="chip chip-orange">Identification ≥100%R</span>
+      <span class="chip chip-purple">Recognition ≥50%R</span>
+      <span class="chip chip-blue">Observation ≥25%R</span>
+      <span class="chip chip-green">Detection ≥10%R</span>
+      <span class="chip" style="color:var(--text2);border-color:var(--border);">Monitoring ≥5%R</span>
+    </div>
+  </div>
+  <div>
+    <div class="section-label" style="margin-bottom:8px">Build Confidence</div>
+    <div class="chips">
+      <span class="chip chip-green">✅ No backend needed</span>
+      <span class="chip chip-green">✅ USB stick deployable</span>
+      <span class="chip chip-blue">✅ All CDN dependencies</span>
+      <span class="chip chip-blue">✅ Builds on proven v2</span>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  ROTAKIN CCTV AUDIT WEBAPP &nbsp;·&nbsp; BUILD PLAN v3.0 &nbsp;·&nbsp; SANS 10222-5-1-4 &nbsp;·&nbsp; GENERATED 2026
+</div>
+
+</body>
+</html>
