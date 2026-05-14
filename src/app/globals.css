@@ -1,112 +1,97 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --bg: #0b0f1a;
-  --surface: #111827;
-  --surface2: #1a2235;
+  /* Rotakin brand colors */
+  --rk-bg: #0b0f1a;
+  --rk-surface: #111827;
+  --rk-surface2: #1a2235;
+  --rk-border: #1e2d45;
+  --rk-border2: #243352;
+  --rk-accent: #00c2ff;
+  --rk-gold: #f0b429;
+  --rk-green: #10d98a;
+  --rk-orange: #ff6b35;
+  --rk-red: #ff4757;
+  --rk-purple: #a78bfa;
+  --rk-text: #e8edf5;
+  --rk-text2: #8899b4;
+  --rk-text3: #4a5f7a;
+
+  /* shadcn variables mapped to dark theme (always dark) */
+  --background: #0b0f1a;
+  --foreground: #e8edf5;
+  --card: #111827;
+  --card-foreground: #e8edf5;
+  --popover: #1a2235;
+  --popover-foreground: #e8edf5;
+  --primary: #00c2ff;
+  --primary-foreground: #0b0f1a;
+  --secondary: #1a2235;
+  --secondary-foreground: #e8edf5;
+  --muted: #1a2235;
+  --muted-foreground: #8899b4;
+  --accent: #1a2235;
+  --accent-foreground: #e8edf5;
+  --destructive: #ff4757;
+  --destructive-foreground: #e8edf5;
   --border: #1e2d45;
-  --border2: #243352;
-  --accent: #00c2ff;
-  --gold: #f0b429;
-  --green: #10d98a;
-  --orange: #ff6b35;
-  --red: #ff4757;
-  --purple: #a78bfa;
-  --text: #e8edf5;
-  --text2: #8899b4;
-  --text3: #4a5f7a;
+  --input: #1a2235;
+  --ring: #00c2ff;
+  --radius: 0.5rem;
+
+  /* chart colors */
+  --chart-1: #10d98a;
+  --chart-2: #00c2ff;
+  --chart-3: #f0b429;
+  --chart-4: #ff6b35;
+  --chart-5: #a78bfa;
 }
 
-* {
-  box-sizing: border-box;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.5);
+  --radius-xl: calc(var(--radius) * 2);
 }
 
-html,
-body {
-  height: 100%;
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--rk-bg); }
+::-webkit-scrollbar-thumb { background: var(--rk-border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--rk-text3); }
 
-::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border2);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text3);
-}
-
-/* Base input styles */
-input,
-textarea,
-select {
-  background-color: var(--surface2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 12px;
-  width: 100%;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 194, 255, 0.15);
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: var(--text3);
-}
-
-select option {
-  background-color: var(--surface2);
-  color: var(--text);
-}
-
-/* Button base */
-button {
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  border: none;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Recharts overrides */
-.recharts-text {
-  fill: var(--text2) !important;
-}
-
-.recharts-cartesian-axis-tick-value {
-  fill: var(--text2) !important;
-}
-
-.recharts-tooltip-wrapper {
-  outline: none;
-}
+/* Recharts dark overrides */
+.recharts-text { fill: var(--rk-text2) !important; }
+.recharts-cartesian-axis-tick-value { fill: var(--rk-text2) !important; }

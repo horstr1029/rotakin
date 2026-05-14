@@ -1,13 +1,28 @@
 'use client';
-
-import React, { useRef } from 'react';
+import { Shield, Plus, Upload, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
+import { toast } from 'sonner';
+import type { TabId } from '@/app/page';
 import type { AuditState } from '@/lib/types';
 
-export default function AppHeader() {
+interface Props {
+  activeTab: TabId;
+  setActiveTab: (t: TabId) => void;
+}
+
+export default function AppHeader({ setActiveTab }: Props) {
   const { state, newAudit, loadAudit } = useStore();
-  const importRef = useRef<HTMLInputElement>(null);
   const siteName = state.audit.site.siteName;
+
+  function handleNew() {
+    if (confirm('Start a new audit? Unsaved changes will be lost.')) {
+      newAudit();
+      toast.success('New audit started');
+      setActiveTab('M1');
+    }
+  }
 
   function handleExport() {
     const json = JSON.stringify(state, null, 2);
@@ -15,186 +30,81 @@ export default function AppHeader() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const fname = `rotakin_audit_${state.audit.site.reportRef || state.audit.id}.json`;
-    a.download = fname;
+    a.download = `rotakin-${state.audit.site.reportRef || 'audit'}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success('Audit exported');
   }
 
-  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+  function handleImport() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
       try {
-        const data = JSON.parse(ev.target?.result as string) as AuditState;
+        const text = await file.text();
+        const data = JSON.parse(text) as AuditState;
         if (data.schemaVersion === '3.0') {
           loadAudit(data);
+          toast.success('Audit imported');
         } else {
-          alert('Invalid or incompatible audit file.');
+          toast.error('Invalid or incompatible audit file');
         }
       } catch {
-        alert('Failed to parse JSON file.');
+        toast.error('Invalid JSON file');
       }
     };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  function handleNewAudit() {
-    if (confirm('Start a new audit? All unsaved changes will be lost.')) {
-      newAudit();
-    }
+    input.click();
   }
 
   return (
     <header
-      style={{
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
-        padding: '0 24px',
-        height: '60px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}
+      className="flex items-center gap-4 px-6 h-14 shrink-0 border-b"
+      style={{ background: 'var(--rk-surface)', borderColor: 'var(--rk-border)' }}
     >
-      {/* Left: branding */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+      {/* Logo */}
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex items-center justify-center w-8 h-8 rounded-lg"
+          style={{ background: 'rgba(0,194,255,0.12)', border: '1px solid rgba(0,194,255,0.25)' }}
+        >
+          <Shield className="w-4 h-4" style={{ color: 'var(--rk-accent)' }} />
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-bold text-base tracking-tight" style={{ color: 'var(--rk-accent)' }}>ROTAKIN</span>
           <span
-            style={{
-              fontWeight: 900,
-              fontSize: '22px',
-              letterSpacing: '0.08em',
-              color: 'var(--accent)',
-              fontFamily: 'system-ui, sans-serif',
-            }}
-          >
-            ROTAKIN
-          </span>
-          <span
-            style={{
-              background: 'var(--accent)',
-              color: '#000',
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '1px 6px',
-              borderRadius: '4px',
-              letterSpacing: '0.05em',
-            }}
+            className="text-xs font-mono px-1.5 py-0.5 rounded"
+            style={{ background: 'rgba(0,194,255,0.1)', color: 'var(--rk-accent)', border: '1px solid rgba(0,194,255,0.2)' }}
           >
             v3
           </span>
         </div>
-        <div
-          style={{
-            width: '1px',
-            height: '28px',
-            background: 'var(--border)',
-          }}
-        />
-        <span style={{ color: 'var(--text2)', fontSize: '13px' }}>
-          CCTV Audit Platform
-        </span>
-        {siteName && (
-          <>
-            <div style={{ width: '1px', height: '28px', background: 'var(--border)' }} />
-            <span
-              style={{
-                color: 'var(--text)',
-                fontSize: '13px',
-                fontWeight: 500,
-                maxWidth: '240px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {siteName}
-            </span>
-          </>
+      </div>
+
+      <Separator orientation="vertical" className="h-5 mx-1" />
+
+      {/* Site name */}
+      <div className="flex-1 min-w-0">
+        {siteName ? (
+          <p className="text-sm font-medium truncate" style={{ color: 'var(--rk-text)' }}>{siteName}</p>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--rk-text3)' }}>No audit loaded</p>
         )}
       </div>
 
-      {/* Right: actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button
-          onClick={handleNewAudit}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--border2)',
-            color: 'var(--text2)',
-            borderRadius: '6px',
-            padding: '7px 14px',
-            fontSize: '13px',
-            fontWeight: 500,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border2)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'var(--text2)';
-          }}
-        >
-          New Audit
-        </button>
-
-        <button
-          onClick={() => importRef.current?.click()}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--border2)',
-            color: 'var(--text2)',
-            borderRadius: '6px',
-            padding: '7px 14px',
-            fontSize: '13px',
-            fontWeight: 500,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gold)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'var(--gold)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border2)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'var(--text2)';
-          }}
-        >
-          Import JSON
-        </button>
-        <input
-          ref={importRef}
-          type="file"
-          accept=".json,application/json"
-          style={{ display: 'none' }}
-          onChange={handleImport}
-        />
-
-        <button
-          onClick={handleExport}
-          style={{
-            background: 'var(--accent)',
-            color: '#000',
-            borderRadius: '6px',
-            padding: '7px 14px',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = '#00a8d9';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)';
-          }}
-        >
-          Export JSON
-        </button>
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5 text-xs">
+          <Plus className="w-3.5 h-3.5" /> New
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5 text-xs">
+          <Upload className="w-3.5 h-3.5" /> Import
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs">
+          <Download className="w-3.5 h-3.5" /> Export
+        </Button>
       </div>
     </header>
   );

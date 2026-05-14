@@ -1,287 +1,156 @@
 'use client';
-
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { FileText, Download, Lock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/lib/store';
 import { generateSANSReport } from '@/lib/pdf';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
-interface Template {
-  id: string;
-  title: string;
-  description: string;
-  sections: string[];
-  available: boolean;
-  comingSoon?: string;
-}
-
-const TEMPLATES: Template[] = [
+const TEMPLATES = [
   {
     id: 'sans-full',
     title: 'SANS Full Audit Report',
-    description: 'Complete SANS 10222-5-1-4 compliance audit report with all camera data, step results, and facial scoring.',
-    sections: [
-      'Cover page with logos and report reference',
-      'Site & audit detail table',
-      'Compliance overview with KPI summary',
-      'Per-camera details: measurements, audit steps, facial scoring',
-      'Declarations & signature blocks',
-    ],
+    description: 'Complete SANS 10222-5-1-4 compliance audit with all camera data, step results, and facial scoring.',
+    sections: ['Cover page with logos', 'Site & audit details table', 'Compliance overview', 'Per-camera records', 'Declarations & signatures'],
     available: true,
   },
   {
     id: 'executive',
     title: 'Executive Summary',
-    description: 'High-level compliance overview suitable for management and non-technical stakeholders.',
-    sections: ['KPI summary', 'Zone compliance table', 'Key findings', 'Recommendations'],
+    description: '2-page board-level overview — site, compliance rate, key findings, and recommendations.',
+    sections: ['KPI summary', 'Top findings', 'Recommended actions'],
     available: false,
-    comingSoon: 'Phase 3',
   },
   {
     id: 'technical',
     title: 'Technical Appendix',
-    description: 'Detailed technical data including all raw measurements, step logs, and image references.',
-    sections: ['Full camera inventory', 'Raw measurement data', 'Step-by-step results', 'Image catalogue'],
+    description: 'Engineer-focused detail: raw measurements, confidence scores, step-by-step results, full-size annotated images.',
+    sections: ['Raw measurement data', 'Step-by-step results', 'Confidence scores', 'Full annotated images'],
     available: false,
-    comingSoon: 'Phase 3',
   },
   {
     id: 'saps',
     title: 'SAPS Forensic Exhibit',
-    description: 'Formatted for South African Police Service forensic exhibit submission.',
-    sections: ['Chain of custody', 'System capability assessment', 'Forensic readiness rating'],
+    description: 'Formatted for South African Police Service forensic evidence requirements with chain of custody.',
+    sections: ['Chain of custody', 'Examiner certification', 'Exhibit reference numbering'],
     available: false,
-    comingSoon: 'Phase 3',
   },
   {
     id: 'remediation',
     title: 'Remediation Action Plan',
-    description: 'Prioritised list of non-compliance issues with recommended corrective actions.',
-    sections: ['Non-compliant camera list', 'Delta analysis', 'Priority ranking', 'Cost estimate range'],
+    description: 'Non-compliant cameras only — prioritised upgrade table with suggested equipment and cost bands.',
+    sections: ['Non-compliant cameras only', 'Priority rating', 'Suggested equipment', 'Sign-off tracking'],
     available: false,
-    comingSoon: 'Phase 3',
   },
-];
+] as const;
 
 export default function M5_Reports() {
   const { state } = useStore();
-  const [selected, setSelected] = useState('sans-full');
+  const [selected, setSelected] = useState<string>('sans-full');
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const selectedTemplate = TEMPLATES.find(t => t.id === selected)!;
 
   async function handleGenerate() {
-    if (!selectedTemplate.available) return;
+    if (state.audit.cameras.length === 0) {
+      toast.error('Add at least one camera before generating a report');
+      return;
+    }
     setGenerating(true);
-    setError(null);
     try {
       await generateSANSReport(state);
+      toast.success('PDF report generated');
     } catch (err) {
       console.error(err);
-      setError('Failed to generate PDF. Check console for details.');
+      toast.error('Failed to generate report');
     } finally {
       setGenerating(false);
     }
   }
 
+  const active = TEMPLATES.find(t => t.id === selected)!;
+
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '28px 24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Reports</h2>
-        <p style={{ color: 'var(--text2)', fontSize: '13px' }}>Generate compliance audit reports in PDF format</p>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold mb-1">Report Generator</h2>
+        <p className="text-sm" style={{ color: 'var(--rk-text2)' }}>Select a template and generate a professional compliance report.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', alignItems: 'start' }}>
-        {/* Template selector */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ color: 'var(--text2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-            Report Templates
-          </div>
-          {TEMPLATES.map(tpl => (
-            <button
-              key={tpl.id}
-              onClick={() => setSelected(tpl.id)}
-              style={{
-                background: selected === tpl.id ? 'rgba(0,194,255,0.1)' : 'var(--surface)',
-                border: `1px solid ${selected === tpl.id ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: '8px',
-                padding: '12px 14px',
-                textAlign: 'left',
-                color: tpl.available ? 'var(--text)' : 'var(--text3)',
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: 600, fontSize: '13px' }}>{tpl.title}</span>
-                {tpl.comingSoon && (
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      color: 'var(--purple)',
-                      background: 'rgba(167,139,250,0.15)',
-                      padding: '2px 5px',
-                      borderRadius: '3px',
-                      fontWeight: 600,
-                      flexShrink: 0,
-                      marginLeft: '6px',
-                    }}
-                  >
-                    {tpl.comingSoon}
-                  </span>
-                )}
-              </div>
-              <div style={{ color: 'var(--text2)', fontSize: '11px', marginTop: '3px' }}>
-                {tpl.description.slice(0, 60)}...
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Template detail + generate */}
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            padding: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-            <div>
-              <h3 style={{ color: 'var(--text)', fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>
-                {selectedTemplate.title}
-              </h3>
-              <p style={{ color: 'var(--text2)', fontSize: '13px', lineHeight: '1.5' }}>
-                {selectedTemplate.description}
-              </p>
-            </div>
-            {selectedTemplate.available ? (
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                style={{
-                  background: generating ? 'var(--surface2)' : 'var(--accent)',
-                  color: generating ? 'var(--text2)' : '#000',
-                  borderRadius: '8px',
-                  padding: '10px 22px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  marginLeft: '20px',
-                }}
-              >
-                {generating ? 'Generating...' : 'Generate PDF'}
-              </button>
-            ) : (
-              <span
-                style={{
-                  background: 'rgba(167,139,250,0.1)',
-                  border: '1px solid var(--purple)',
-                  color: 'var(--purple)',
-                  borderRadius: '8px',
-                  padding: '10px 16px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  marginLeft: '20px',
-                }}
-              >
-                {selectedTemplate.comingSoon}
-              </span>
+      {/* Template grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {TEMPLATES.map(t => (
+          <button
+            key={t.id}
+            onClick={() => t.available && setSelected(t.id)}
+            className={cn(
+              'text-left rounded-xl border p-4 transition-all duration-150',
+              !t.available && 'opacity-50 cursor-not-allowed',
+              selected === t.id && t.available
+                ? 'border-[var(--rk-accent)]'
+                : 'border-[var(--rk-border)] hover:border-[var(--rk-border2)]'
             )}
-          </div>
-
-          {error && (
-            <div
-              style={{
-                background: 'rgba(255,71,87,0.1)',
-                border: '1px solid var(--red)',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                color: 'var(--red)',
-                fontSize: '13px',
-                marginBottom: '16px',
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* Sections preview */}
-          <div
             style={{
-              background: 'var(--surface2)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '16px',
+              background: selected === t.id && t.available ? 'rgba(0,194,255,0.04)' : 'var(--rk-surface)',
             }}
           >
-            <div style={{ color: 'var(--text2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
-              Sections included
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
+                background: selected === t.id && t.available ? 'rgba(0,194,255,0.12)' : 'var(--rk-surface2)',
+              }}>
+                {t.available
+                  ? <FileText className="w-4 h-4" style={{ color: selected === t.id ? 'var(--rk-accent)' : 'var(--rk-text3)' }} />
+                  : <Lock className="w-4 h-4" style={{ color: 'var(--rk-text3)' }} />
+                }
+              </div>
+              {!t.available && (
+                <Badge className="text-xs font-mono" style={{ color: 'var(--rk-purple)', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)' }}>
+                  Phase 3
+                </Badge>
+              )}
+              {t.available && selected === t.id && (
+                <Badge className="text-xs" style={{ color: 'var(--rk-accent)', background: 'rgba(0,194,255,0.1)', border: '1px solid rgba(0,194,255,0.2)' }}>
+                  Selected
+                </Badge>
+              )}
             </div>
-            {selectedTemplate.sections.map((section, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 0',
-                  borderBottom: i < selectedTemplate.sections.length - 1 ? '1px solid var(--border)' : 'none',
-                }}
-              >
-                <span
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    background: selectedTemplate.available ? 'rgba(0,194,255,0.15)' : 'rgba(167,139,250,0.1)',
-                    border: `1px solid ${selectedTemplate.available ? 'var(--accent)' : 'var(--purple)'}`,
-                    color: selectedTemplate.available ? 'var(--accent)' : 'var(--purple)',
-                    fontSize: '10px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {i + 1}
-                </span>
-                <span style={{ color: selectedTemplate.available ? 'var(--text)' : 'var(--text3)', fontSize: '13px' }}>
-                  {section}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Audit summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-            {[
-              { label: 'Cameras', value: state.audit.cameras.length },
-              { label: 'Site', value: state.audit.site.siteName || 'Not set' },
-              { label: 'Standard', value: state.audit.site.activeStandard || 'SANS 10222-5-1-4' },
-            ].map(item => (
-              <div
-                key={item.label}
-                style={{
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  padding: '10px 12px',
-                }}
-              >
-                <div style={{ color: 'var(--text2)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>
-                  {item.label}
-                </div>
-                <div style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+            <h3 className="text-sm font-semibold mb-1">{t.title}</h3>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--rk-text2)' }}>{t.description}</p>
+          </button>
+        ))}
       </div>
+
+      {/* Selected template detail + generate */}
+      {active.available && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">{active.title}</CardTitle>
+            <CardDescription className="text-xs">{active.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--rk-text3)' }}>Included sections</p>
+              <ul className="space-y-1.5">
+                {active.sections.map(s => (
+                  <li key={s} className="flex items-center gap-2 text-sm" style={{ color: 'var(--rk-text2)' }}>
+                    <span style={{ color: 'var(--rk-green)' }}>✓</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <Button onClick={handleGenerate} disabled={generating} className="gap-2">
+                <Download className="w-4 h-4" />
+                {generating ? 'Generating…' : 'Generate PDF'}
+              </Button>
+              <p className="text-xs" style={{ color: 'var(--rk-text3)' }}>
+                {state.audit.cameras.length} camera{state.audit.cameras.length !== 1 ? 's' : ''} · {state.audit.site.activeStandard}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

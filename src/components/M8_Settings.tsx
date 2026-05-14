@@ -1,541 +1,239 @@
 'use client';
-
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Plus, RotateCcw, Trash2, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useStore } from '@/lib/store';
 import type { Standard, StepDef } from '@/lib/types';
 import { DEFAULT_STANDARDS, BS_EN_STANDARDS, DEFAULT_STEP_DEFS } from '@/lib/standards';
 import { clearAuditDB } from '@/lib/storage';
+import { toast } from 'sonner';
 
 export default function M8_Settings() {
   const { state, updateStandards, updateStepDefs, newAudit } = useStore();
   const { standards, auditStepDefs } = state.audit;
 
-  const [editingStd, setEditingStd] = useState<Standard | null>(null);
-  const [newStd, setNewStd] = useState<Partial<Standard>>({});
-  const [showAddStd, setShowAddStd] = useState(false);
+  // — Standards editing —
+  const [editingStdId, setEditingStdId] = useState<number | null>(null);
+  const [editStdBuf, setEditStdBuf] = useState<Partial<Standard>>({});
 
-  const [editingStep, setEditingStep] = useState<number | null>(null);
-  const [editStepData, setEditStepData] = useState<Partial<StepDef>>({});
-
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--surface2)',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    padding: '6px 10px',
-    fontSize: '13px',
-    width: '100%',
-    outline: 'none',
-  };
-
-  // ── Standards editor ─────────────────────────────────────────────────────────
-  function handleDeleteStd(level: number) {
-    if (standards.length <= 1) { alert('Cannot delete the last standard.'); return; }
-    if (!confirm(`Delete level ${level}?`)) return;
+  function startEditStd(s: Standard) { setEditingStdId(s.level); setEditStdBuf({ ...s }); }
+  function saveStd() {
+    updateStandards(standards.map(s => s.level === editingStdId ? { ...s, ...editStdBuf, minR: Number(editStdBuf.minR) } : s));
+    setEditingStdId(null);
+    toast.success('Standard updated');
+  }
+  function deleteStd(level: number) {
     updateStandards(standards.filter(s => s.level !== level));
+    toast.success('Standard removed');
+  }
+  function addStd() {
+    const maxLevel = Math.max(0, ...standards.map(s => s.level));
+    const newStd: Standard = { level: maxLevel + 1, name: 'New Level', minR: 0, color: '#ffffff' };
+    updateStandards([...standards, newStd]);
+    startEditStd(newStd);
   }
 
-  function handleSaveStd() {
-    if (!editingStd) return;
-    updateStandards(standards.map(s => s.level === editingStd.level ? editingStd : s));
-    setEditingStd(null);
-  }
+  // — Step defs editing —
+  const [editingStepId, setEditingStepId] = useState<number | null>(null);
+  const [editStepBuf, setEditStepBuf] = useState<Partial<StepDef>>({});
 
-  function handleAddStd() {
-    if (!newStd.level || !newStd.name || newStd.minR === undefined) {
-      alert('Please fill in Level, Name, and Min %R.');
-      return;
-    }
-    if (standards.find(s => s.level === newStd.level)) {
-      alert('A standard with that level already exists.');
-      return;
-    }
-    const std: Standard = {
-      level: Number(newStd.level),
-      name: newStd.name,
-      minR: Number(newStd.minR),
-      color: newStd.color ?? '#8899b4',
-    };
-    updateStandards([...standards, std].sort((a, b) => b.level - a.level));
-    setNewStd({});
-    setShowAddStd(false);
+  function startEditStep(s: StepDef) { setEditingStepId(s.id); setEditStepBuf({ ...s }); }
+  function saveStep() {
+    updateStepDefs(auditStepDefs.map(s => s.id === editingStepId ? { ...s, ...editStepBuf } : s));
+    setEditingStepId(null);
+    toast.success('Step updated');
   }
-
-  function handleMoveStep(idx: number, dir: -1 | 1) {
+  function moveStep(id: number, dir: -1 | 1) {
     const arr = [...auditStepDefs];
-    const target = idx + dir;
-    if (target < 0 || target >= arr.length) return;
-    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    const idx = arr.findIndex(s => s.id === id);
+    const next = idx + dir;
+    if (next < 0 || next >= arr.length) return;
+    [arr[idx], arr[next]] = [arr[next], arr[idx]];
     updateStepDefs(arr);
   }
 
-  function handleSaveStep() {
-    if (editingStep === null) return;
-    updateStepDefs(
-      auditStepDefs.map(s =>
-        s.id === editingStep ? { ...s, ...editStepData } : s
-      )
-    );
-    setEditingStep(null);
-    setEditStepData({});
-  }
-
-  async function handleClearAll() {
-    if (!confirm('This will permanently delete all audit data. Are you sure?')) return;
-    if (!confirm('Final confirmation: clear all data?')) return;
+  // — Clear data —
+  async function clearAll() {
     await clearAuditDB();
     newAudit();
+    toast.success('All data cleared');
   }
 
-  const sectionStyle: React.CSSProperties = {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '20px',
-    marginBottom: '20px',
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    color: 'var(--accent)',
-    fontSize: '13px',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.07em',
-    marginBottom: '14px',
-  };
-
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '28px 24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Settings</h2>
-        <p style={{ color: 'var(--text2)', fontSize: '13px' }}>Manage standards, audit step definitions, and app preferences</p>
-      </div>
-
-      {/* ── Standards editor ── */}
-      <div style={sectionStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div style={sectionTitleStyle}>Standards Editor</div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => updateStandards(DEFAULT_STANDARDS)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border2)',
-                color: 'var(--text2)',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-              }}
-            >
-              Reset to SANS Defaults
-            </button>
-            <button
-              onClick={() => updateStandards(BS_EN_STANDARDS)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border2)',
-                color: 'var(--text2)',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-              }}
-            >
-              Reset to BS EN 50132-7
-            </button>
-            <button
-              onClick={() => setShowAddStd(true)}
-              style={{
-                background: 'var(--accent)',
-                color: '#000',
-                borderRadius: '6px',
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 700,
-              }}
-            >
-              + Add Standard
-            </button>
+    <div className="space-y-6">
+      {/* Standards Editor */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-sm font-medium">SANS Standards</CardTitle>
+              <CardDescription className="text-xs mt-1">Configure %R thresholds for each compliance level.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => { updateStandards(DEFAULT_STANDARDS); toast.success('Reset to SANS defaults'); }}>
+                <RotateCcw className="w-3 h-3" /> SANS
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => { updateStandards(BS_EN_STANDARDS); toast.success('Reset to BS EN defaults'); }}>
+                <RotateCcw className="w-3 h-3" /> BS EN
+              </Button>
+              <Button size="sm" className="gap-1.5 text-xs" onClick={addStd}>
+                <Plus className="w-3 h-3" /> Add
+              </Button>
+            </div>
           </div>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Level', 'Name', 'Min %R', 'Color', 'Actions'].map(h => (
-                  <th
-                    key={h}
-                    style={{
-                      color: 'var(--text2)',
-                      fontWeight: 600,
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      padding: '8px 10px',
-                      textAlign: 'left',
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...standards].sort((a, b) => b.level - a.level).map((std, i) => (
-                <tr
-                  key={std.level}
-                  style={{
-                    borderBottom: '1px solid var(--border)',
-                    background: i % 2 === 1 ? 'var(--surface2)' : 'transparent',
-                  }}
-                >
-                  {editingStd?.level === std.level ? (
-                    <>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          style={{ ...inputStyle, width: '60px' }}
-                          type="number"
-                          value={editingStd.level}
-                          onChange={e => setEditingStd({ ...editingStd, level: parseInt(e.target.value) })}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          style={inputStyle}
-                          value={editingStd.name}
-                          onChange={e => setEditingStd({ ...editingStd, name: e.target.value })}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          style={{ ...inputStyle, width: '80px' }}
-                          type="number"
-                          value={editingStd.minR}
-                          onChange={e => setEditingStd({ ...editingStd, minR: parseFloat(e.target.value) })}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="color"
-                          value={editingStd.color}
-                          onChange={e => setEditingStd({ ...editingStd, color: e.target.value })}
-                          style={{ width: '40px', height: '28px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={handleSaveStd}
-                            style={{ background: 'var(--green)', color: '#000', borderRadius: '5px', padding: '4px 10px', fontSize: '11px', fontWeight: 700 }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingStd(null)}
-                            style={{ background: 'var(--surface)', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '5px', padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={{ padding: '8px 10px', color: 'var(--text2)', fontWeight: 700 }}>{std.level}</td>
-                      <td style={{ padding: '8px 10px', color: std.color, fontWeight: 600 }}>{std.name}</td>
-                      <td style={{ padding: '8px 10px', color: 'var(--text)' }}>{std.minR}%R</td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: std.color }} />
-                          <span style={{ color: 'var(--text3)', fontSize: '11px' }}>{std.color}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={() => setEditingStd({ ...std })}
-                            style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '5px', padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteStd(std.level)}
-                            style={{ background: 'rgba(255,71,87,0.12)', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: '5px', padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Del
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Level</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Min %R</TableHead>
+                <TableHead>Color</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...standards].sort((a, b) => b.level - a.level).map(s => (
+                <TableRow key={s.level}>
+                  <TableCell className="font-mono text-sm">{s.level}</TableCell>
+                  <TableCell>
+                    {editingStdId === s.level
+                      ? <Input value={editStdBuf.name ?? ''} onChange={e => setEditStdBuf(p => ({ ...p, name: e.target.value }))} className="h-7 text-xs w-32" />
+                      : <span className="text-sm font-medium">{s.name}</span>}
+                  </TableCell>
+                  <TableCell>
+                    {editingStdId === s.level
+                      ? <Input type="number" value={editStdBuf.minR ?? ''} onChange={e => setEditStdBuf(p => ({ ...p, minR: Number(e.target.value) }))} className="h-7 text-xs w-20" />
+                      : <span className="font-mono text-sm">{s.minR}%</span>}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full border border-white/10" style={{ background: s.color }} />
+                      {editingStdId === s.level && (
+                        <Input type="color" value={editStdBuf.color ?? s.color} onChange={e => setEditStdBuf(p => ({ ...p, color: e.target.value }))} className="h-7 w-14 p-0.5 cursor-pointer" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {editingStdId === s.level ? (
+                        <>
+                          <Button size="sm" className="h-7 text-xs px-2" onClick={saveStd}>Save</Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingStdId(null)}>Cancel</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => startEditStd(s)}>Edit</Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteStd(s.level)}>
+                            <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--rk-red)' }} />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        {/* Add standard form */}
-        {showAddStd && (
-          <div
-            style={{
-              marginTop: '16px',
-              background: 'var(--surface2)',
-              border: '1px solid var(--border2)',
-              borderRadius: '8px',
-              padding: '16px',
-            }}
-          >
-            <div style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Add New Standard</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 60px', gap: '10px', alignItems: 'flex-end' }}>
-              <div>
-                <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Level</div>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  placeholder="6"
-                  value={newStd.level ?? ''}
-                  onChange={e => setNewStd(s => ({ ...s, level: parseInt(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Name</div>
-                <input
-                  style={inputStyle}
-                  placeholder="e.g. Extreme Identification"
-                  value={newStd.name ?? ''}
-                  onChange={e => setNewStd(s => ({ ...s, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Min %R</div>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  placeholder="150"
-                  value={newStd.minR ?? ''}
-                  onChange={e => setNewStd(s => ({ ...s, minR: parseFloat(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Color</div>
-                <input
-                  type="color"
-                  value={newStd.color ?? '#ffffff'}
-                  onChange={e => setNewStd(s => ({ ...s, color: e.target.value }))}
-                  style={{ width: '40px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-              <button
-                onClick={handleAddStd}
-                style={{ background: 'var(--accent)', color: '#000', borderRadius: '6px', padding: '7px 16px', fontSize: '13px', fontWeight: 700 }}
-              >
-                Add Standard
-              </button>
-              <button
-                onClick={() => { setShowAddStd(false); setNewStd({}); }}
-                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '6px', padding: '7px 16px', fontSize: '13px' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Audit Step Definitions ── */}
-      <div style={sectionStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div style={sectionTitleStyle}>Audit Step Definitions</div>
-          <button
-            onClick={() => updateStepDefs(DEFAULT_STEP_DEFS)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border2)',
-              color: 'var(--text2)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '12px',
-            }}
-          >
-            Reset to Defaults
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {auditStepDefs.map((step, idx) => (
-            <div
-              key={step.id}
-              style={{
-                background: 'var(--surface2)',
-                border: `1px solid ${editingStep === step.id ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: '8px',
-                padding: '12px 14px',
-              }}
-            >
-              {editingStep === step.id ? (
-                <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Step Name</div>
-                      <input
-                        style={inputStyle}
-                        value={editStepData.name ?? step.name}
-                        onChange={e => setEditStepData(d => ({ ...d, name: e.target.value }))}
-                      />
+      {/* Audit Step Definitions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Audit Step Definitions</CardTitle>
+          <CardDescription className="text-xs">The 7-step Rotakin audit procedure shown on each camera card.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {auditStepDefs.map((s, idx) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-mono text-sm text-center">{s.id}</TableCell>
+                  <TableCell>
+                    {editingStepId === s.id
+                      ? <Input value={editStepBuf.name ?? ''} onChange={e => setEditStepBuf(p => ({ ...p, name: e.target.value }))} className="h-7 text-xs w-36" />
+                      : <span className="text-sm font-medium">{s.name}</span>}
+                  </TableCell>
+                  <TableCell className="max-w-xs">
+                    {editingStepId === s.id
+                      ? <Input value={editStepBuf.desc ?? ''} onChange={e => setEditStepBuf(p => ({ ...p, desc: e.target.value }))} className="h-7 text-xs" />
+                      : <span className="text-xs" style={{ color: 'var(--rk-text2)' }}>{s.desc}</span>}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(s.id, -1)} disabled={idx === 0}>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveStep(s.id, 1)} disabled={idx === auditStepDefs.length - 1}>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
+                      {editingStepId === s.id ? (
+                        <>
+                          <Button size="sm" className="h-7 text-xs px-2" onClick={saveStep}>Save</Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingStepId(null)}>Cancel</Button>
+                        </>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => startEditStep(s)}>Edit</Button>
+                      )}
                     </div>
-                    <div>
-                      <div style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px' }}>Description</div>
-                      <input
-                        style={inputStyle}
-                        value={editStepData.desc ?? step.desc}
-                        onChange={e => setEditStepData(d => ({ ...d, desc: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={handleSaveStep}
-                      style={{ background: 'var(--green)', color: '#000', borderRadius: '5px', padding: '5px 14px', fontSize: '12px', fontWeight: 700 }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => { setEditingStep(null); setEditStepData({}); }}
-                      style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '5px', padding: '5px 14px', fontSize: '12px' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ color: 'var(--text3)', fontWeight: 700, fontSize: '12px', minWidth: '24px' }}>
-                    #{step.id}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '13px' }}>{step.name}</div>
-                    <div style={{ color: 'var(--text2)', fontSize: '11px' }}>{step.desc}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    <button
-                      onClick={() => handleMoveStep(idx, -1)}
-                      disabled={idx === 0}
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border2)',
-                        color: 'var(--text3)',
-                        borderRadius: '4px',
-                        padding: '3px 7px',
-                        fontSize: '11px',
-                      }}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => handleMoveStep(idx, 1)}
-                      disabled={idx === auditStepDefs.length - 1}
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border2)',
-                        color: 'var(--text3)',
-                        borderRadius: '4px',
-                        padding: '3px 7px',
-                        fontSize: '11px',
-                      }}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      onClick={() => { setEditingStep(step.id); setEditStepData({ name: step.name, desc: step.desc }); }}
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border2)',
-                        color: 'var(--text2)',
-                        borderRadius: '4px',
-                        padding: '3px 10px',
-                        fontSize: '11px',
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+        <div className="px-4 pb-4 pt-2">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => { updateStepDefs(DEFAULT_STEP_DEFS); toast.success('Steps reset to defaults'); }}>
+            <RotateCcw className="w-3 h-3" /> Reset to Defaults
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* ── App Settings ── */}
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>App Settings</div>
-
-        {/* Confidence thresholds (read-only info) */}
-        <div
-          style={{
-            background: 'var(--surface2)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            padding: '14px 16px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ color: 'var(--text2)', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
-            Phase 2 — Image AI Confidence Thresholds (read-only)
-          </div>
-          <div style={{ display: 'flex', gap: '24px' }}>
+      {/* Danger Zone */}
+      <Card style={{ borderColor: 'rgba(255,71,87,0.25)' }}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--rk-red)' }}>
+            <AlertTriangle className="w-4 h-4" /> Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
             <div>
-              <span style={{ color: 'var(--text3)', fontSize: '12px' }}>Low confidence: </span>
-              <span style={{ color: 'var(--red)', fontWeight: 700 }}>40%</span>
+              <p className="text-sm font-medium">Clear all audit data</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--rk-text2)' }}>Permanently deletes all cameras, site info, and images from this browser. Cannot be undone.</p>
             </div>
-            <div>
-              <span style={{ color: 'var(--text3)', fontSize: '12px' }}>Review threshold: </span>
-              <span style={{ color: 'var(--gold)', fontWeight: 700 }}>70%</span>
-            </div>
-            <div>
-              <span style={{ color: 'var(--text3)', fontSize: '12px' }}>Auto-pass: </span>
-              <span style={{ color: 'var(--green)', fontWeight: 700 }}>≥ 70%</span>
-            </div>
+            <Dialog>
+              <DialogTrigger>
+                <Button variant="destructive" size="sm">Clear All Data</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Clear all audit data?</DialogTitle>
+                  <DialogDescription>This permanently deletes all cameras, site info, images, and settings stored in this browser. Export a JSON backup first if you want to keep the data.</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline">Cancel</Button>
+                  <Button variant="destructive" onClick={clearAll}>Yes, clear everything</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        </div>
-
-        {/* Clear all data */}
-        <div
-          style={{
-            background: 'rgba(255,71,87,0.06)',
-            border: '1px solid rgba(255,71,87,0.3)',
-            borderRadius: '8px',
-            padding: '16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ color: 'var(--text)', fontWeight: 600, marginBottom: '4px' }}>Clear All Data</div>
-            <div style={{ color: 'var(--text2)', fontSize: '12px' }}>
-              Permanently delete all audit data from local storage. This cannot be undone.
-            </div>
-          </div>
-          <button
-            onClick={handleClearAll}
-            style={{
-              background: 'var(--red)',
-              color: '#fff',
-              borderRadius: '6px',
-              padding: '8px 18px',
-              fontSize: '13px',
-              fontWeight: 700,
-              marginLeft: '20px',
-              flexShrink: 0,
-            }}
-          >
-            Clear All Data
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,98 +1,49 @@
 'use client';
+import { ClipboardList, FolderOpen, Camera, BarChart3, FileText, Bot, History, Settings2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { TabId } from '@/app/page';
 
-import React from 'react';
+const TABS = [
+  { id: 'M1', label: 'Site Setup',  icon: ClipboardList, phase2: false },
+  { id: 'M2', label: 'Images',      icon: FolderOpen,    phase2: true  },
+  { id: 'M3', label: 'Cameras',     icon: Camera,        phase2: false },
+  { id: 'M4', label: 'Dashboard',   icon: BarChart3,     phase2: false },
+  { id: 'M5', label: 'Reports',     icon: FileText,      phase2: false },
+  { id: 'M6', label: 'AI',          icon: Bot,           phase2: false },
+  { id: 'M7', label: 'History',     icon: History,       phase2: true  },
+  { id: 'M8', label: 'Settings',    icon: Settings2,     phase2: false },
+] as const;
 
-export type TabId = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8';
-
-interface Tab {
-  id: TabId;
-  label: string;
-  phase2?: boolean;
+interface Props {
+  activeTab: TabId;
+  setActiveTab: (t: TabId) => void;
 }
 
-const TABS: Tab[] = [
-  { id: 'M1', label: 'Site Setup' },
-  { id: 'M2', label: 'Image Importer', phase2: true },
-  { id: 'M3', label: 'Cameras' },
-  { id: 'M4', label: 'Dashboard' },
-  { id: 'M5', label: 'Reports' },
-  { id: 'M6', label: 'AI' },
-  { id: 'M7', label: 'History', phase2: true },
-  { id: 'M8', label: 'Settings' },
-];
-
-interface TabNavProps {
-  active: TabId;
-  onChange: (id: TabId) => void;
-}
-
-export default function TabNav({ active, onChange }: TabNavProps) {
+export default function TabNav({ activeTab, setActiveTab }: Props) {
   return (
     <nav
-      style={{
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'stretch',
-        paddingLeft: '16px',
-        overflowX: 'auto',
-        flexShrink: 0,
-      }}
+      className="flex gap-0 overflow-x-auto shrink-0 border-b scrollbar-none"
+      style={{ background: 'var(--rk-surface)', borderColor: 'var(--rk-border)' }}
     >
-      {TABS.map(tab => {
-        const isActive = tab.id === active;
+      {TABS.map(({ id, label, icon: Icon, phase2 }) => {
+        const active = activeTab === id;
         return (
           <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            style={{
-              background: 'transparent',
-              color: isActive ? 'var(--accent)' : tab.phase2 ? 'var(--text3)' : 'var(--text2)',
-              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-              borderRadius: 0,
-              padding: '12px 16px',
-              fontSize: '13px',
-              fontWeight: isActive ? 600 : 400,
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={e => {
-              if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.color = tab.phase2 ? 'var(--text2)' : 'var(--text)';
-              }
-            }}
-            onMouseLeave={e => {
-              if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.color = tab.phase2 ? 'var(--text3)' : 'var(--text2)';
-              }
-            }}
+            key={id}
+            onClick={() => setActiveTab(id as TabId)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap relative',
+              active
+                ? 'border-[var(--rk-accent)] text-[var(--rk-accent)]'
+                : 'border-transparent text-[var(--rk-text3)] hover:text-[var(--rk-text2)] hover:border-[var(--rk-border2)]'
+            )}
           >
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: isActive ? 'var(--accent)' : 'var(--text3)',
-                letterSpacing: '0.05em',
-              }}
-            >
-              {tab.id}
-            </span>
-            <span>{tab.label}</span>
-            {tab.phase2 && (
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+            {phase2 && (
               <span
-                style={{
-                  fontSize: '9px',
-                  color: 'var(--purple)',
-                  background: 'rgba(167,139,250,0.15)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  fontWeight: 600,
-                  letterSpacing: '0.03em',
-                }}
+                className="text-[10px] font-mono px-1 rounded"
+                style={{ background: 'rgba(167,139,250,0.12)', color: 'var(--rk-purple)' }}
               >
                 P2
               </span>

@@ -1,73 +1,48 @@
 'use client';
-
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { Bot, Wifi, WifiOff, Square, Copy, Check } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
 import { classifyLevel } from '@/lib/standards';
+import { toast } from 'sonner';
 import type { AuditState } from '@/lib/types';
 
 type ReportType = 'fullAudit' | 'executive' | 'technical' | 'sapsForensic' | 'remediation';
 
-interface ReportOption {
-  id: ReportType;
-  label: string;
-  description: string;
-}
-
-const REPORT_OPTIONS: ReportOption[] = [
-  { id: 'fullAudit', label: 'Full Audit', description: 'Comprehensive audit report with all findings' },
-  { id: 'executive', label: 'Executive Summary', description: 'High-level overview for management' },
-  { id: 'technical', label: 'Technical Detail', description: 'In-depth technical analysis of all cameras' },
-  { id: 'sapsForensic', label: 'SAPS Forensic', description: 'Formatted for police forensic exhibit submission' },
-  { id: 'remediation', label: 'Remediation Plan', description: 'Prioritised corrective action recommendations' },
+const REPORT_OPTIONS: { id: ReportType; label: string; description: string }[] = [
+  { id: 'fullAudit',    label: 'Full Audit',        description: 'Comprehensive audit report with all findings' },
+  { id: 'executive',   label: 'Executive Summary',  description: 'High-level overview for management' },
+  { id: 'technical',   label: 'Technical Detail',   description: 'In-depth technical analysis of all cameras' },
+  { id: 'sapsForensic',label: 'SAPS Forensic',      description: 'Formatted for police forensic exhibit submission' },
+  { id: 'remediation', label: 'Remediation Plan',   description: 'Prioritised corrective action recommendations' },
 ];
 
 function buildPrompt(type: ReportType, auditData: AuditState): string {
-  const { audit } = auditData;
-  const { site, cameras, standards } = audit;
-
+  const { site, cameras, standards } = auditData.audit;
   const compliant = cameras.filter(c => {
     const ach = classifyLevel(c.measuredR, standards);
     const req = standards.find(s => s.name === c.requiredStandard);
     return ach && req && ach.level >= req.level;
   }).length;
-
-  const camSummary = cameras.map(c => {
+  const rate = cameras.length ? Math.round((compliant / cameras.length) * 100) : 0;
+  const cameraList = cameras.map(c => {
     const ach = classifyLevel(c.measuredR, standards);
-    const reqStd = standards.find(s => s.name === c.requiredStandard);
-    const status = ach && reqStd
-      ? (ach.level >= reqStd.level ? 'COMPLIANT' : 'NON-COMPLIANT')
-      : 'PENDING';
-    return `- Camera ${c.ref || '(no ref)'}: Zone=${c.zone || 'N/A'}, Required=${c.requiredStandard}, Measured %R=${c.measuredR ?? 'not measured'}, Achieved=${ach ? ach.name : 'N/A'}, Status=${status}`;
+    return `- ${c.ref || 'Unnamed'} (Zone: ${c.zone || 'N/A'}, %R: ${c.measuredR ?? 'N/A'}, Level: ${ach?.name ?? 'Pending'}, Required: ${c.requiredStandard})`;
   }).join('\n');
 
-  const context = `
-ROTAKIN CCTV AUDIT DATA:
-Standard: ${site.activeStandard || 'SANS 10222-5-1-4'}
-Site: ${site.siteName || 'Unknown'} | ${site.siteAddress || ''}
-Client: ${site.client || 'Unknown'}
-Audit Date: ${site.auditDate || 'Unknown'}
-Engineer: ${site.engineerName || 'Unknown'} (${site.engineerId || ''})
-Certificate: ${site.certNumber || 'N/A'}
-Cert Body: ${site.certBody || 'N/A'}
-
-SUMMARY:
-Total Cameras: ${cameras.length}
-Compliant: ${compliant}
-Non-Compliant: ${cameras.length - compliant - cameras.filter(c => !c.measuredR).length}
-Pending: ${cameras.filter(c => !c.measuredR).length}
-
-CAMERA DETAILS:
-${camSummary || 'No cameras recorded.'}
-
-Notes: ${site.notes || 'None'}
-  `.trim();
+  const systemContext = `You are a professional CCTV compliance engineer writing a formal audit report. Use precise, technical language. Standard: ${site.activeStandard}.`;
 
   const prompts: Record<ReportType, string> = {
-    fullAudit: `You are a CCTV compliance expert. Write a comprehensive ${site.activeStandard || 'SANS 10222-5-1-4'} audit report based on the following data. Include an introduction, methodology, findings for each camera, compliance analysis by zone, and conclusion. Use professional technical language.\n\n${context}`,
-    executive: `You are a security consultant. Write a concise executive summary of the following CCTV compliance audit for senior management. Focus on key findings, compliance status, business risk, and recommended actions. Use clear non-technical language.\n\n${context}`,
-    technical: `You are a CCTV systems engineer. Write a detailed technical analysis of the following audit data. Include in-depth assessment of each camera's performance, measurement methodology critique, technical recommendations for non-compliant cameras, and system-level observations.\n\n${context}`,
-    sapsForensic: `You are a forensic readiness expert. Write a SAPS-formatted forensic exhibit document assessing the CCTV system's evidential capability. Include system identification details, capability assessment per ${site.activeStandard || 'SANS 10222-5-1-4'} level, forensic readiness rating, and chain of custody considerations.\n\n${context}`,
-    remediation: `You are a CCTV compliance consultant. Write a prioritised remediation action plan for the non-compliant cameras in the following audit. For each non-compliant camera, provide: specific corrective actions, priority level (Critical/High/Medium), estimated effort, and expected outcome. Include an implementation timeline suggestion.\n\n${context}`,
+    fullAudit: `${systemContext}\n\nWrite a comprehensive CCTV audit report for:\nSite: ${site.siteName}\nClient: ${site.client}\nDate: ${site.auditDate}\nEngineer: ${site.engineerName}\nCompliance rate: ${rate}%\n\nCamera results:\n${cameraList}\n\nInclude: Executive Summary, Scope, Methodology, Findings per camera zone, Compliance Assessment, Recommendations, Conclusion.`,
+    executive: `${systemContext}\n\nWrite a 1-page executive summary for ${site.siteName}. Compliance rate: ${rate}% (${compliant}/${cameras.length} cameras). Highlight top 3 findings and recommended actions.`,
+    technical: `${systemContext}\n\nWrite a detailed technical appendix for ${site.siteName}. Cover measurement methodology, per-camera technical findings, anomalies, and equipment recommendations.\n\nCamera data:\n${cameraList}`,
+    sapsForensic: `${systemContext}\n\nWrite a SAPS forensic exhibit report for ${site.siteName}. Include chain of custody statement, examiner qualifications, exhibit numbering, and evidentiary notes per camera.\n\nCamera data:\n${cameraList}`,
+    remediation: `${systemContext}\n\nWrite a remediation action plan for non-compliant cameras at ${site.siteName}. For each non-compliant camera provide: issue description, recommended fix, priority (High/Medium/Low), and estimated impact.\n\nCamera data:\n${cameraList}`,
   };
 
   return prompts[type];
@@ -77,308 +52,177 @@ export default function M6_AI() {
   const { state, updateAiReports } = useStore();
   const [serverUrl, setServerUrl] = useState('http://localhost:11434');
   const [model, setModel] = useState('llama3.2');
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
-  const [testMsg, setTestMsg] = useState('');
-  const [activeReport, setActiveReport] = useState<ReportType | null>(null);
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [testing, setTesting] = useState(false);
   const [output, setOutput] = useState('');
   const [generating, setGenerating] = useState(false);
-  const outputRef = useRef<HTMLTextAreaElement>(null);
+  const [copied, setCopied] = useState(false);
+  const [activeType, setActiveType] = useState<ReportType | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  async function handleTestConnection() {
-    setTestStatus('testing');
-    setTestMsg('');
+  async function testConnection() {
+    setTesting(true);
     try {
       const res = await fetch(`${serverUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        const data = await res.json() as { models?: { name: string }[] };
-        const models = data.models?.map((m: { name: string }) => m.name).join(', ') || 'none';
-        setTestStatus('ok');
-        setTestMsg(`Connected! Available models: ${models}`);
-      } else {
-        setTestStatus('error');
-        setTestMsg(`Server responded with status ${res.status}`);
-      }
-    } catch (err) {
-      setTestStatus('error');
-      setTestMsg(err instanceof Error ? err.message : 'Connection failed');
+      setConnected(res.ok);
+      toast[res.ok ? 'success' : 'error'](res.ok ? 'Ollama connected' : 'Connection failed');
+    } catch {
+      setConnected(false);
+      toast.error('Cannot reach Ollama server');
+    } finally {
+      setTesting(false);
     }
   }
 
-  async function handleGenerate(type: ReportType) {
-    if (generating) {
-      abortRef.current?.abort();
-      return;
-    }
-    setActiveReport(type);
-    setOutput('');
+  async function generate(type: ReportType) {
     setGenerating(true);
+    setActiveType(type);
+    setOutput('');
     const prompt = buildPrompt(type, state);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
+    abortRef.current = new AbortController();
 
     try {
       const res = await fetch(`${serverUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, prompt, stream: true }),
-        signal: controller.signal,
+        signal: abortRef.current.signal,
       });
-
-      if (!res.ok) {
-        throw new Error(`Ollama returned ${res.status}: ${await res.text()}`);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const reader = res.body!.getReader();
       const decoder = new TextDecoder();
-      let fullText = '';
-
+      let full = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(Boolean);
-        for (const line of lines) {
+        for (const line of chunk.split('\n').filter(Boolean)) {
           try {
-            const parsed = JSON.parse(line) as { response?: string; done?: boolean };
-            if (parsed.response) {
-              fullText += parsed.response;
-              setOutput(fullText);
-              if (outputRef.current) {
-                outputRef.current.scrollTop = outputRef.current.scrollHeight;
-              }
+            const json = JSON.parse(line);
+            if (json.response) {
+              full += json.response;
+              setOutput(full);
             }
-          } catch {
-            // Skip malformed lines
-          }
+          } catch { /* skip malformed */ }
         }
       }
-
-      // Save to store
-      updateAiReports({
-        [type === 'fullAudit' ? 'fullAudit' : 'executive']: fullText,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setOutput(prev => prev + '\n\n[Generation stopped by user]');
-      } else {
-        setOutput(`Error: ${err instanceof Error ? err.message : 'Unknown error'}\n\nMake sure Ollama is running at ${serverUrl} and model "${model}" is available.`);
-      }
+      updateAiReports({ [type]: full, generatedAt: new Date().toISOString() });
+      toast.success('Report generated');
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') toast.error('Generation failed');
     } finally {
       setGenerating(false);
-      abortRef.current = null;
+      setActiveType(null);
     }
   }
 
-  function handleCopy() {
-    if (output) navigator.clipboard.writeText(output);
+  function stop() {
+    abortRef.current?.abort();
+    setGenerating(false);
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--surface2)',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    padding: '8px 12px',
-    fontSize: '13px',
-    width: '100%',
-    outline: 'none',
-  };
+  async function copyOutput() {
+    await navigator.clipboard.writeText(output);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success('Copied to clipboard');
+  }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '28px 24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>AI Report Generator</h2>
-        <p style={{ color: 'var(--text2)', fontSize: '13px' }}>
-          Generate AI-written audit reports using Ollama (local LLM)
-        </p>
-      </div>
-
-      {/* Config */}
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '20px',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '14px' }}>
-          Ollama Configuration
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px 140px', gap: '12px', alignItems: 'flex-end' }}>
-          <div>
-            <div style={{ color: 'var(--text2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-              Server URL
+    <div className="space-y-6">
+      {/* Connection config */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Bot className="w-4 h-4" style={{ color: 'var(--rk-purple)' }} />
+            Ollama Connection
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Server URL</Label>
+              <Input value={serverUrl} onChange={e => setServerUrl(e.target.value)} placeholder="http://localhost:11434" />
             </div>
-            <input
-              style={inputStyle}
-              value={serverUrl}
-              onChange={e => setServerUrl(e.target.value)}
-              placeholder="http://localhost:11434"
-            />
-          </div>
-          <div>
-            <div style={{ color: 'var(--text2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-              Model
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Model</Label>
+              <Input value={model} onChange={e => setModel(e.target.value)} placeholder="llama3.2" />
             </div>
-            <input
-              style={inputStyle}
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              placeholder="llama3.2"
-            />
           </div>
-          <button
-            onClick={handleTestConnection}
-            disabled={testStatus === 'testing'}
-            style={{
-              background: testStatus === 'ok' ? 'rgba(16,217,138,0.15)' : testStatus === 'error' ? 'rgba(255,71,87,0.15)' : 'var(--surface2)',
-              border: `1px solid ${testStatus === 'ok' ? 'var(--green)' : testStatus === 'error' ? 'var(--red)' : 'var(--border2)'}`,
-              color: testStatus === 'ok' ? 'var(--green)' : testStatus === 'error' ? 'var(--red)' : 'var(--text2)',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              fontSize: '13px',
-              fontWeight: 500,
-            }}
-          >
-            {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
-          </button>
-        </div>
-        {testMsg && (
-          <div style={{ marginTop: '10px', fontSize: '12px', color: testStatus === 'ok' ? 'var(--green)' : 'var(--red)' }}>
-            {testMsg}
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={testConnection} disabled={testing} className="gap-2">
+              {connected === true ? <Wifi className="w-3.5 h-3.5" style={{ color: 'var(--rk-green)' }} />
+                : connected === false ? <WifiOff className="w-3.5 h-3.5" style={{ color: 'var(--rk-red)' }} />
+                : <Wifi className="w-3.5 h-3.5" />}
+              {testing ? 'Testing…' : 'Test Connection'}
+            </Button>
+            {connected !== null && (
+              <Badge className="text-xs" style={connected
+                ? { color: 'var(--rk-green)', background: 'rgba(16,217,138,0.1)', border: '1px solid rgba(16,217,138,0.2)' }
+                : { color: 'var(--rk-red)', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.2)' }
+              }>
+                {connected ? 'Connected' : 'Offline'}
+              </Badge>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Report type buttons */}
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '20px',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '14px' }}>
-          Generate Report
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
-          {REPORT_OPTIONS.map(opt => {
-            const isActive = activeReport === opt.id && generating;
-            return (
-              <button
+      {/* Report buttons */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Generate AI Report</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {REPORT_OPTIONS.map(opt => (
+              <Button
                 key={opt.id}
-                onClick={() => handleGenerate(opt.id)}
-                style={{
-                  background: isActive ? 'rgba(0,194,255,0.15)' : 'var(--surface2)',
-                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border2)'}`,
-                  color: isActive ? 'var(--accent)' : 'var(--text)',
-                  borderRadius: '8px',
-                  padding: '12px 8px',
-                  textAlign: 'center',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  alignItems: 'center',
-                }}
+                variant="outline"
+                size="sm"
+                disabled={generating}
+                onClick={() => generate(opt.id)}
+                className="justify-start gap-2 h-auto py-3 px-4 flex-col items-start"
+                style={activeType === opt.id ? { borderColor: 'var(--rk-purple)', background: 'rgba(167,139,250,0.06)' } : {}}
               >
-                <span style={{ fontSize: '13px', fontWeight: 700 }}>
-                  {isActive ? '⏸ Stop' : opt.label}
-                </span>
-                <span style={{ color: 'var(--text2)', fontSize: '10px', fontWeight: 400, lineHeight: '1.3' }}>
-                  {opt.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Output */}
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Output {activeReport ? `— ${REPORT_OPTIONS.find(o => o.id === activeReport)?.label}` : ''}
+                <span className="font-medium text-xs">{opt.label}</span>
+                <span className="text-xs font-normal opacity-60 text-left">{opt.description}</span>
+              </Button>
+            ))}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {generating && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: 'var(--accent)',
-                  fontSize: '12px',
-                }}
-              >
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    animation: 'pulse 1s infinite',
-                  }}
-                />
-                Generating...
-              </span>
-            )}
-            {output && (
-              <button
-                onClick={handleCopy}
-                style={{
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border2)',
-                  color: 'var(--text2)',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                }}
-              >
-                Copy to Clipboard
-              </button>
-            )}
-          </div>
-        </div>
-        <textarea
-          ref={outputRef}
-          readOnly
-          value={output || (generating ? '' : 'Select a report type above to generate AI content...')}
-          style={{
-            ...inputStyle,
-            minHeight: '380px',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            resize: 'vertical',
-            lineHeight: '1.6',
-            color: output ? 'var(--text)' : 'var(--text3)',
-          }}
-        />
-      </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-      `}</style>
+          {/* Output */}
+          {(output || generating) && (
+            <>
+              <Separator className="my-2" />
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>
+                  {generating ? 'Generating…' : 'Output'}
+                </p>
+                <div className="flex items-center gap-2">
+                  {generating && (
+                    <Button variant="outline" size="sm" onClick={stop} className="gap-1.5 text-xs h-7">
+                      <Square className="w-3 h-3" /> Stop
+                    </Button>
+                  )}
+                  {output && !generating && (
+                    <Button variant="outline" size="sm" onClick={copyOutput} className="gap-1.5 text-xs h-7">
+                      {copied ? <Check className="w-3 h-3" style={{ color: 'var(--rk-green)' }} /> : <Copy className="w-3 h-3" />}
+                      {copied ? 'Copied' : 'Copy'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div
+                className="rounded-lg p-4 text-sm leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto font-mono"
+                style={{ background: 'var(--rk-surface2)', border: '1px solid var(--rk-border)', color: 'var(--rk-text2)', fontSize: 13 }}
+              >
+                {output || <span style={{ color: 'var(--rk-text3)' }}>Waiting for response…</span>}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
