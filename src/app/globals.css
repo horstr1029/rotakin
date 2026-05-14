@@ -95,3 +95,11 @@
 /* Recharts dark overrides */
 .recharts-text { fill: var(--rk-text2) !important; }
 .recharts-cartesian-axis-tick-value { fill: var(--rk-text2) !important; }
+
+@media (max-width: 768px) {
+  .rk-sheet-full { width: 100vw !important; max-width: 100vw !important; }
+  .rk-tab-label { display: none; }
+}
+@media (min-width: 769px) {
+  .rk-tab-label { display: inline; }
+}

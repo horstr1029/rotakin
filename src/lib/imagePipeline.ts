@@ -15,10 +15,16 @@ export class ImagePipeline {
   private running = false;
   private onUpdate: UpdateFn;
   private onComplete?: () => void;
+  private preprocessing?: { brightness: number; contrast: number; sharpness: number };
 
-  constructor(onUpdate: UpdateFn, onComplete?: () => void) {
+  constructor(
+    onUpdate: UpdateFn,
+    onComplete?: () => void,
+    preprocessing?: { brightness: number; contrast: number; sharpness: number }
+  ) {
     this.onUpdate = onUpdate;
     this.onComplete = onComplete;
+    this.preprocessing = preprocessing;
   }
 
   private getWorker(): Worker | null {
@@ -97,7 +103,13 @@ export class ImagePipeline {
       };
 
       worker.postMessage(
-        { id: pending.id, arrayBuffer: buf, mimeType: file.type, stepType: pending.assignedStepType },
+        {
+          id: pending.id,
+          arrayBuffer: buf,
+          mimeType: file.type,
+          stepType: pending.assignedStepType,
+          preprocessing: this.preprocessing,
+        },
         [buf]
       );
     });

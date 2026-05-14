@@ -248,13 +248,32 @@ async function generateThumbnail(bitmap: ImageBitmap): Promise<string> {
   return blobToBase64(blob);
 }
 
+// ── Apply brightness/contrast preprocessing ───────────────────────────────────
+function applyPreprocessing(
+  data: Uint8ClampedArray,
+  brightness: number,
+  contrast: number
+): void {
+  const brightAdj = brightness * 2.55;
+  const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      let val = data[i + c];
+      val = val + brightAdj;
+      val = contrastFactor * (val - 128) + 128;
+      data[i + c] = Math.max(0, Math.min(255, Math.round(val)));
+    }
+  }
+}
+
 // ── Main worker message handler ───────────────────────────────────────────────
 self.onmessage = async (e: MessageEvent) => {
-  const { id, arrayBuffer, mimeType, stepType } = e.data as {
+  const { id, arrayBuffer, mimeType, stepType, preprocessing } = e.data as {
     id: string;
     arrayBuffer: ArrayBuffer;
     mimeType: string;
     stepType: string | null;
+    preprocessing?: { brightness: number; contrast: number; sharpness: number };
   };
 
   try {
@@ -269,6 +288,11 @@ self.onmessage = async (e: MessageEvent) => {
     ctx.drawImage(bitmap, 0, 0);
     const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
     const { data, width, height } = imageData;
+
+    if (preprocessing && (preprocessing.brightness !== 0 || preprocessing.contrast !== 0)) {
+      applyPreprocessing(data, preprocessing.brightness, preprocessing.contrast);
+      ctx.putImageData(imageData, 0, 0);
+    }
 
     const gray = toGrayscale(data, width, height);
     const edges = sobelEdges(gray, width, height);

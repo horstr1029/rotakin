@@ -1,7 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Camera, CheckCircle2, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { Camera, CheckCircle2, XCircle, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -67,6 +67,38 @@ export default function M4_Dashboard() {
     const req = standards.find(s => s.name === c.requiredStandard);
     return ach && req && ach.level < req.level;
   }), [cameras, standards]);
+
+  type AnomalySeverity = 'high' | 'medium' | 'low';
+  interface Anomaly { cameraRef: string; issue: string; severity: AnomalySeverity; }
+
+  const anomalies = useMemo<Anomaly[]>(() => {
+    const result: Anomaly[] = [];
+    for (const cam of cameras) {
+      if (cam.measuredR === null) {
+        result.push({ cameraRef: cam.ref || cam.id, issue: 'No measurement recorded', severity: 'medium' });
+      }
+      for (const slot of Object.values(cam.images)) {
+        if (!slot?.analysisResult) continue;
+        const ar = slot.analysisResult;
+        if (ar.confidence < 40) {
+          result.push({ cameraRef: cam.ref || cam.id, issue: 'Low confidence measurement', severity: 'medium' });
+          break;
+        }
+        if (ar.blurIndex !== null && ar.blurIndex < 50) {
+          result.push({ cameraRef: cam.ref || cam.id, issue: `High blur detected (blurIndex: ${ar.blurIndex})`, severity: 'high' });
+          break;
+        }
+      }
+      if (cam.measuredR !== null && cam.requiredStandard) {
+        const ach = classifyLevel(cam.measuredR, standards);
+        const req = standards.find(s => s.name === cam.requiredStandard);
+        if (ach && req && req.level - ach.level >= 2) {
+          result.push({ cameraRef: cam.ref || cam.id, issue: 'Severely non-compliant', severity: 'high' });
+        }
+      }
+    }
+    return result;
+  }, [cameras, standards]);
 
   const KPI_CARDS = [
     { label: 'Total Cameras', value: kpis.total, icon: Camera, color: 'var(--rk-accent)', bg: 'rgba(0,194,255,0.08)' },
@@ -170,6 +202,41 @@ export default function M4_Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Anomalies */}
+      {anomalies.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" style={{ color: 'var(--rk-gold)' }} />
+              Anomalies ({anomalies.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {anomalies.slice(0, 10).map((a, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <span className="font-semibold min-w-[80px]" style={{ color: 'var(--rk-text)' }}>{a.cameraRef}</span>
+                <span style={{ color: 'var(--rk-text2)' }} className="flex-1">{a.issue}</span>
+                <Badge
+                  className="text-[10px] shrink-0"
+                  style={
+                    a.severity === 'high'
+                      ? { background: 'rgba(255,71,87,0.15)', color: 'var(--rk-red)', border: '1px solid rgba(255,71,87,0.3)' }
+                      : a.severity === 'medium'
+                      ? { background: 'rgba(240,180,41,0.15)', color: 'var(--rk-gold)', border: '1px solid rgba(240,180,41,0.3)' }
+                      : { background: 'rgba(0,194,255,0.1)', color: 'var(--rk-accent)', border: '1px solid rgba(0,194,255,0.2)' }
+                  }
+                >
+                  {a.severity}
+                </Badge>
+              </div>
+            ))}
+            {anomalies.length > 10 && (
+              <p className="text-xs pt-1" style={{ color: 'var(--rk-text3)' }}>{anomalies.length - 10} more…</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Non-Compliance List */}
       {nonCompliantCams.length > 0 && (

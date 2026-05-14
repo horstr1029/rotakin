@@ -3,13 +3,15 @@
 import { useRef, useState, useCallback } from 'react';
 import {
   FolderOpen, Upload, Play, Trash2, ImageIcon, CheckCircle2,
-  AlertCircle, Clock, Loader2, HelpCircle, Eye,
+  AlertCircle, Clock, Loader2, HelpCircle, Eye, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 import { useStore } from '@/lib/store';
 import { parseFilename, isImageFile } from '@/lib/parseFilename';
 import { ImagePipeline } from '@/lib/imagePipeline';
@@ -56,6 +58,12 @@ export default function M2_ImageImporter() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [viewerItem, setViewerItem] = useState<QueueItem | null>(null);
+  const [preprocessingOpen, setPreprocessingOpen] = useState(false);
+  const [preprocessing, setPreprocessing] = useState({
+    brightness: 0,
+    contrast: 0,
+    sharpness: 100,
+  });
 
   // ── File ingestion ──────────────────────────────────────────────────────
   const ingestFiles = useCallback((fileList: FileList | File[]) => {
@@ -184,7 +192,8 @@ export default function M2_ImageImporter() {
       () => {
         setProcessingQueue(false);
         toast.success('Processing complete');
-      }
+      },
+      preprocessing
     );
 
     toProcess.forEach(item => {
@@ -217,6 +226,61 @@ export default function M2_ImageImporter() {
 
   return (
     <div className="space-y-6">
+      {/* ── Pre-processing Panel ─────────────────────────────────── */}
+      <div className="rounded-xl border" style={{ borderColor: 'var(--rk-border)', background: 'var(--rk-surface)' }}>
+        <button
+          className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium"
+          style={{ color: 'var(--rk-text2)' }}
+          onClick={() => setPreprocessingOpen(v => !v)}
+        >
+          <span>Pre-processing</span>
+          {preprocessingOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {preprocessingOpen && (
+          <div className="px-4 pb-4 space-y-5 border-t" style={{ borderColor: 'var(--rk-border)' }}>
+            <div className="space-y-2 pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Brightness</Label>
+                <span className="text-xs font-mono" style={{ color: 'var(--rk-text2)' }}>{preprocessing.brightness > 0 ? '+' : ''}{preprocessing.brightness}</span>
+              </div>
+              <Slider
+                min={-100}
+                max={100}
+                step={1}
+                value={preprocessing.brightness}
+                onValueChange={(v) => setPreprocessing(p => ({ ...p, brightness: v as number }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Contrast</Label>
+                <span className="text-xs font-mono" style={{ color: 'var(--rk-text2)' }}>{preprocessing.contrast > 0 ? '+' : ''}{preprocessing.contrast}</span>
+              </div>
+              <Slider
+                min={-100}
+                max={100}
+                step={1}
+                value={preprocessing.contrast}
+                onValueChange={(v) => setPreprocessing(p => ({ ...p, contrast: v as number }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Sharpness</Label>
+                <span className="text-xs font-mono" style={{ color: 'var(--rk-text2)' }}>{preprocessing.sharpness}</span>
+              </div>
+              <Slider
+                min={0}
+                max={200}
+                step={1}
+                value={preprocessing.sharpness}
+                onValueChange={(v) => setPreprocessing(p => ({ ...p, sharpness: v as number }))}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Drop Zone ────────────────────────────────────────────── */}
       <div
         className="relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer"

@@ -218,9 +218,9 @@ export default function M3_Cameras() {
               <TableRow style={{ background: 'var(--rk-surface2)', borderColor: 'var(--rk-border)' }}>
                 <TableHead className="w-6 text-xs py-2.5"></TableHead>
                 <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>Ref</TableHead>
-                <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>Make / Model</TableHead>
-                <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>Zone</TableHead>
-                <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>Required</TableHead>
+                <TableHead className="text-xs py-2.5 hidden md:table-cell" style={{ color: 'var(--rk-text2)' }}>Make / Model</TableHead>
+                <TableHead className="text-xs py-2.5 hidden sm:table-cell" style={{ color: 'var(--rk-text2)' }}>Zone</TableHead>
+                <TableHead className="text-xs py-2.5 hidden sm:table-cell" style={{ color: 'var(--rk-text2)' }}>Required</TableHead>
                 <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>Achieved</TableHead>
                 <TableHead className="text-xs py-2.5" style={{ color: 'var(--rk-text2)' }}>%R</TableHead>
                 <TableHead className="text-xs py-2.5 w-20" style={{ color: 'var(--rk-text2)' }}>Actions</TableHead>
@@ -259,13 +259,13 @@ export default function M3_Cameras() {
                     <TableCell className="py-2.5 font-semibold text-sm" style={{ color: 'var(--rk-text)' }}>
                       {cam.ref || <span style={{ color: 'var(--rk-text3)' }}>(no ref)</span>}
                     </TableCell>
-                    <TableCell className="py-2.5 text-sm" style={{ color: 'var(--rk-text2)' }}>
+                    <TableCell className="py-2.5 text-sm hidden md:table-cell" style={{ color: 'var(--rk-text2)' }}>
                       {[cam.make, cam.model].filter(Boolean).join(' ') || <span style={{ color: 'var(--rk-text3)' }}>Unknown</span>}
                     </TableCell>
-                    <TableCell className="py-2.5 text-xs" style={{ color: 'var(--rk-text2)' }}>
+                    <TableCell className="py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--rk-text2)' }}>
                       {cam.zone || <span style={{ color: 'var(--rk-text3)' }}>—</span>}
                     </TableCell>
-                    <TableCell className="py-2.5 text-xs" style={{ color: 'var(--rk-text2)' }}>
+                    <TableCell className="py-2.5 text-xs hidden sm:table-cell" style={{ color: 'var(--rk-text2)' }}>
                       {cam.requiredStandard}
                     </TableCell>
                     <TableCell className="py-2.5">
@@ -288,7 +288,7 @@ export default function M3_Cameras() {
                       {cam.measuredR !== null ? `${cam.measuredR}%` : '—'}
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
                         <Tooltip>
                           <TooltipTrigger>
                             <Button

@@ -69,7 +69,7 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-2xl overflow-y-auto p-0"
+        className="w-full sm:max-w-2xl overflow-y-auto p-0 rk-sheet-full"
         style={{ background: 'var(--rk-surface)', borderColor: 'var(--rk-border)' }}
       >
         <SheetHeader className="px-6 py-4 border-b" style={{ borderColor: 'var(--rk-border)' }}>

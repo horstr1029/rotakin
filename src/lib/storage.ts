@@ -87,3 +87,22 @@ export async function clearHistoryDB(): Promise<void> {
     console.error('Failed to clear history store:', err);
   }
 }
+
+export async function saveApiKey(key: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.put(STORE_NAME, key, 'claude-api-key');
+  } catch (err) {
+    console.error('Failed to save API key:', err);
+  }
+}
+
+export async function loadApiKey(): Promise<string> {
+  try {
+    const db = await getDB();
+    const key = await db.get(STORE_NAME, 'claude-api-key') as string | undefined;
+    return key ?? '';
+  } catch {
+    return '';
+  }
+}
