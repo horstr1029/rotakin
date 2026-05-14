@@ -1,5 +1,5 @@
 'use client';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,10 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useStore } from '@/lib/store';
 import type { Camera, ImageSlot, FaceLine } from '@/lib/types';
 import { classifyLevel } from '@/lib/standards';
 import { cn } from '@/lib/utils';
+import AnnotationViewer from '@/components/AnnotationViewer';
+import type { QueueItem } from '@/lib/types';
 
 type ImageSlotKey = keyof Camera['images'];
 
@@ -44,7 +47,15 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
   const { state, updateCamera, updateCameraImage, updateAuditStep, updateFaceLine } = useStore();
   const { standards, auditStepDefs } = state.audit;
 
+  const [annotationViewerItem, setAnnotationViewerItem] = useState<QueueItem | null>(null);
+
   if (!camera) return null;
+
+  // Find the best analysis result across all image slots
+  const autoAnalysis = Object.values(camera.images)
+    .map(slot => slot?.analysisResult)
+    .filter((r): r is NonNullable<typeof r> => !!r)
+    .sort((a, b) => b.confidence - a.confidence)[0] ?? null;
 
   const achieved = classifyLevel(camera.measuredR, standards);
   const required = standards.find(s => s.name === camera.requiredStandard);
@@ -135,7 +146,28 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
               </div>
 
               <div className="space-y-1.5">
-                <FieldLabel>Measured %R</FieldLabel>
+                <div className="flex items-center gap-2">
+                  <FieldLabel>Measured %R</FieldLabel>
+                  {autoAnalysis && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Badge
+                              className="text-[9px] px-1.5 py-0 cursor-help"
+                              style={{ background: 'rgba(0,194,255,0.12)', color: 'var(--rk-accent)', border: '1px solid rgba(0,194,255,0.3)' }}
+                            >
+                              Auto {autoAnalysis.confidence}%
+                            </Badge>
+                          }
+                        />
+                        <TooltipContent side="top" className="text-xs max-w-[200px]">
+                          Auto-populated from canvas image analysis. Confidence: {autoAnalysis.confidence}%. Source: {autoAnalysis.source}.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <Input
                   type="number"
                   min={0}
@@ -207,12 +239,6 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
 
           {/* ── IMAGES TAB ── */}
           <TabsContent value="images" className="p-6 mt-0">
-            <div
-              className="text-xs rounded-md px-3 py-2 mb-4"
-              style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid var(--rk-purple)', color: 'var(--rk-purple)' }}
-            >
-              Image analysis (AI scoring, NPPD, pixel density) available in Phase 2
-            </div>
             <div className="grid grid-cols-3 gap-3">
               {IMAGE_SLOTS.map(slot => (
                 <ImageSlotCard
@@ -222,6 +248,7 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
                   image={camera.images[slot.key]}
                   onUpload={(img) => updateCameraImage(camera.id, slot.key, img)}
                   onRemove={() => updateCameraImage(camera.id, slot.key, null)}
+                  onViewAnalysis={(item) => setAnnotationViewerItem(item)}
                 />
               ))}
             </div>
@@ -293,6 +320,14 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
           </TabsContent>
         </Tabs>
       </SheetContent>
+
+      {annotationViewerItem && (
+        <AnnotationViewer
+          item={annotationViewerItem}
+          open={!!annotationViewerItem}
+          onClose={() => setAnnotationViewerItem(null)}
+        />
+      )}
     </Sheet>
   );
 }
@@ -304,12 +339,14 @@ function ImageSlotCard({
   image,
   onUpload,
   onRemove,
+  onViewAnalysis,
 }: {
   slotKey: ImageSlotKey;
   label: string;
   image: ImageSlot | null;
   onUpload: (img: ImageSlot) => void;
   onRemove: () => void;
+  onViewAnalysis: (item: QueueItem) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -325,6 +362,14 @@ function ImageSlotCard({
     reader.readAsDataURL(file);
   }
 
+  const hasAnalysis = !!(image?.analysisResult);
+  const displaySrc = image?.annotated || image?.original;
+  const result = image?.analysisResult;
+  const confColor = !result ? 'var(--rk-text3)'
+    : result.confidence >= 70 ? 'var(--rk-green)'
+    : result.confidence >= 40 ? 'var(--rk-gold)'
+    : 'var(--rk-red)';
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</Label>
@@ -337,7 +382,7 @@ function ImageSlotCard({
           if (file && file.type.startsWith('image/')) handleFile(file);
         }}
         className={cn(
-          'flex flex-col items-center justify-center min-h-[100px] rounded-lg border-2 border-dashed overflow-hidden transition-colors',
+          'relative flex flex-col items-center justify-center min-h-[100px] rounded-lg border-2 border-dashed overflow-hidden transition-colors',
           !image && 'cursor-pointer',
         )}
         style={{
@@ -346,7 +391,18 @@ function ImageSlotCard({
         }}
       >
         {image ? (
-          <img src={image.original} alt={label} className="w-full h-[100px] object-cover" />
+          <>
+            <img src={displaySrc} alt={label} className="w-full h-[100px] object-cover" />
+            {hasAnalysis && result && (
+              <div
+                className="absolute bottom-0 left-0 right-0 px-1.5 py-0.5 flex justify-between items-center text-[9px] font-semibold"
+                style={{ background: 'rgba(0,0,0,0.65)', color: '#fff' }}
+              >
+                <span>%R: {result.measuredR !== null ? `${result.measuredR}%` : '—'}</span>
+                <span style={{ color: confColor }}>Conf: {result.confidence}%</span>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center gap-1.5 p-3">
             <ImageIcon className="w-6 h-6" style={{ color: 'var(--rk-text3)' }} />
@@ -367,11 +423,42 @@ function ImageSlotCard({
         }}
       />
       {image && (
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] truncate max-w-[70%]" style={{ color: 'var(--rk-text3)' }}>{image.filename}</span>
-          <Button variant="ghost" size="sm" onClick={onRemove} className="text-[10px] h-auto py-0.5 px-1.5" style={{ color: 'var(--rk-red)' }}>
-            Remove
-          </Button>
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] truncate max-w-[50%]" style={{ color: 'var(--rk-text3)' }}>{image.filename}</span>
+          <div className="flex gap-1 shrink-0">
+            {hasAnalysis && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[10px] h-auto py-0.5 px-1.5"
+                style={{ color: 'var(--rk-accent)' }}
+                onClick={() => {
+                  if (!image.analysisResult) return;
+                  // Build a minimal QueueItem for the viewer
+                  const synthetic: QueueItem = {
+                    id: `slot-${slotKey}`,
+                    filename: image.filename,
+                    fileSize: 0,
+                    mimeType: 'image/jpeg',
+                    thumbnail: image.original,
+                    detectedCameraRef: null,
+                    detectedStepType: null,
+                    assignedCameraId: null,
+                    assignedStepType: null,
+                    status: 'done',
+                    error: null,
+                    result: image.analysisResult,
+                  };
+                  onViewAnalysis(synthetic);
+                }}
+              >
+                View Analysis
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onRemove} className="text-[10px] h-auto py-0.5 px-1.5" style={{ color: 'var(--rk-red)' }}>
+              Remove
+            </Button>
+          </div>
         </div>
       )}
     </div>

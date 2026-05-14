@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store';
 import AppHeader from '@/components/AppHeader';
 import TabNav from '@/components/TabNav';
 import M1_SiteSetup from '@/components/M1_SiteSetup';
-import M2_Placeholder from '@/components/M2_Placeholder';
+import M2_ImageImporter from '@/components/M2_ImageImporter';
 import M3_Cameras from '@/components/M3_Cameras';
 import M4_Dashboard from '@/components/M4_Dashboard';
 import M5_Reports from '@/components/M5_Reports';
@@ -22,7 +22,7 @@ export default function Home() {
 
   const panels: Record<TabId, React.ReactNode> = {
     M1: <M1_SiteSetup />,
-    M2: <M2_Placeholder />,
+    M2: <M2_ImageImporter />,
     M3: <M3_Cameras />,
     M4: <M4_Dashboard />,
     M5: <M5_Reports />,

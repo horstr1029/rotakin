@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot } from './types';
+import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType } from './types';
 import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS } from './standards';
 import { loadAuditFromDB, saveAuditToDB } from './storage';
 
@@ -87,6 +87,10 @@ interface StoreState {
   initialized: boolean;
   _saveTimer: ReturnType<typeof setTimeout> | null;
 
+  // Phase 2: image queue (in-memory only, not persisted)
+  imageQueue: QueueItem[];
+  isProcessingQueue: boolean;
+
   initialize: () => Promise<void>;
   scheduleSave: () => void;
 
@@ -106,12 +110,26 @@ interface StoreState {
   newAudit: () => void;
   loadAudit: (data: AuditState) => void;
   importCameras: (cameras: Camera[]) => void;
+
+  // Queue actions
+  setImageQueue: (queue: QueueItem[]) => void;
+  addQueueItems: (items: QueueItem[]) => void;
+  updateQueueItem: (id: string, fields: Partial<QueueItem>) => void;
+  assignQueueItem: (id: string, cameraId: string, stepType: ImageStepType) => void;
+  removeQueueItem: (id: string) => void;
+  clearQueue: () => void;
+  setProcessingQueue: (v: boolean) => void;
+  applyQueueItemToCamera: (queueItemId: string) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
   state: createBlankAudit(),
   initialized: false,
   _saveTimer: null,
+
+  // Phase 2 queue state
+  imageQueue: [],
+  isProcessingQueue: false,
 
   initialize: async () => {
     const saved = await loadAuditFromDB();
@@ -364,6 +382,78 @@ export const useStore = create<StoreState>((set, get) => ({
           ...s.state.audit,
           lastModified: new Date().toISOString(),
           cameras: [...s.state.audit.cameras, ...cameras],
+        },
+      },
+    }));
+    get().scheduleSave();
+  },
+
+  // ── Queue actions ────────────────────────────────────────────────────────
+  setImageQueue: (queue) => set({ imageQueue: queue }),
+
+  addQueueItems: (items) =>
+    set(s => ({ imageQueue: [...s.imageQueue, ...items] })),
+
+  updateQueueItem: (id, fields) =>
+    set(s => ({
+      imageQueue: s.imageQueue.map(item =>
+        item.id === id ? { ...item, ...fields } : item
+      ),
+    })),
+
+  assignQueueItem: (id, cameraId, stepType) =>
+    set(s => ({
+      imageQueue: s.imageQueue.map(item =>
+        item.id === id
+          ? { ...item, assignedCameraId: cameraId, assignedStepType: stepType, status: 'pending' as const }
+          : item
+      ),
+    })),
+
+  removeQueueItem: (id) =>
+    set(s => ({ imageQueue: s.imageQueue.filter(item => item.id !== id) })),
+
+  clearQueue: () => set({ imageQueue: [] }),
+
+  setProcessingQueue: (v) => set({ isProcessingQueue: v }),
+
+  applyQueueItemToCamera: (queueItemId) => {
+    const { imageQueue } = get();
+    const qItem = imageQueue.find(i => i.id === queueItemId);
+    if (!qItem || !qItem.assignedCameraId || !qItem.assignedStepType || !qItem.result) return;
+
+    const { result, thumbnail, filename, assignedCameraId, assignedStepType } = qItem;
+
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: s.state.audit.cameras.map(cam => {
+            if (cam.id !== assignedCameraId) return cam;
+
+            // Update measuredR if result is better or camera has none
+            const existingResult = cam.images[assignedStepType]?.analysisResult;
+            const shouldUpdateR =
+              result.measuredR !== null &&
+              (cam.measuredR === null || result.confidence > (existingResult?.confidence ?? 0));
+
+            return {
+              ...cam,
+              measuredR: shouldUpdateR ? result.measuredR : cam.measuredR,
+              images: {
+                ...cam.images,
+                [assignedStepType]: {
+                  original: thumbnail || result.annotatedImage,
+                  annotated: result.annotatedImage,
+                  filename,
+                  uploadedAt: result.processedAt,
+                  analysisResult: result,
+                } satisfies ImageSlot,
+              },
+            };
+          }),
         },
       },
     }));

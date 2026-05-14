@@ -78,8 +78,10 @@ export interface Camera {
 
 export interface ImageSlot {
   original: string;
+  annotated?: string;
   filename: string;
   uploadedAt: string;
+  analysisResult?: AnalysisResult;
 }
 
 export interface AuditStep {
@@ -94,4 +96,42 @@ export interface FaceLine {
   expected: string;
   techRead: string;
   obsRead: string;
+}
+
+export type ImageStepType = 'static' | 'smear' | 'colour' | 'face' | 'extra1' | 'extra2';
+
+export type QueueStatus = 'pending' | 'processing' | 'done' | 'review' | 'error' | 'unassigned';
+
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  frameWidth: number;
+  frameHeight: number;
+}
+
+export interface AnalysisResult {
+  measuredR: number | null;
+  confidence: number;
+  bbox: BoundingBox | null;
+  blurIndex: number | null;
+  annotatedImage: string;
+  source: 'canvas-analysis';
+  processedAt: string;
+}
+
+export interface QueueItem {
+  id: string;
+  filename: string;
+  fileSize: number;
+  mimeType: string;
+  thumbnail: string;
+  detectedCameraRef: string | null;
+  detectedStepType: ImageStepType | null;
+  assignedCameraId: string | null;
+  assignedStepType: ImageStepType | null;
+  status: QueueStatus;
+  error: string | null;
+  result: AnalysisResult | null;
 }
