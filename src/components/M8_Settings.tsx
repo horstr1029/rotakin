@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useStore } from '@/lib/store';
 import type { Standard, StepDef } from '@/lib/types';
 import { DEFAULT_STANDARDS, BS_EN_STANDARDS, DEFAULT_STEP_DEFS } from '@/lib/standards';
-import { clearAuditDB } from '@/lib/storage';
+import { clearAuditDB, clearHistoryDB } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export default function M8_Settings() {
@@ -59,6 +59,7 @@ export default function M8_Settings() {
   // — Clear data —
   async function clearAll() {
     await clearAuditDB();
+    await clearHistoryDB();
     newAudit();
     toast.success('All data cleared');
   }

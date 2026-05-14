@@ -135,3 +135,13 @@ export interface QueueItem {
   error: string | null;
   result: AnalysisResult | null;
 }
+
+export interface HistorySnapshot {
+  id: string;
+  auditId: string;
+  label: string;
+  savedAt: string;
+  cameraCount: number;
+  complianceRate: number;
+  data: AuditState;
+}

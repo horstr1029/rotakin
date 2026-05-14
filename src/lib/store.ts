@@ -1,9 +1,10 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType } from './types';
+import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot } from './types';
 import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS } from './standards';
-import { loadAuditFromDB, saveAuditToDB } from './storage';
+import { loadAuditFromDB, saveAuditToDB, saveHistorySnapshot, deleteHistorySnapshot } from './storage';
+import { classifyLevel } from './standards';
 
 function createBlankAudit(): AuditState {
   return {
@@ -120,6 +121,11 @@ interface StoreState {
   clearQueue: () => void;
   setProcessingQueue: (v: boolean) => void;
   applyQueueItemToCamera: (queueItemId: string) => void;
+
+  // History actions
+  saveSnapshot: (label: string) => Promise<void>;
+  deleteSnapshot: (id: string) => Promise<void>;
+  restoreSnapshot: (snapshot: HistorySnapshot) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -416,6 +422,35 @@ export const useStore = create<StoreState>((set, get) => ({
   clearQueue: () => set({ imageQueue: [] }),
 
   setProcessingQueue: (v) => set({ isProcessingQueue: v }),
+
+  saveSnapshot: async (label) => {
+    const { state } = get();
+    const { cameras, standards } = state.audit;
+    const compliant = cameras.filter(c => {
+      const ach = classifyLevel(c.measuredR, standards);
+      const req = standards.find(s => s.name === c.requiredStandard);
+      return ach && req && ach.level >= req.level;
+    }).length;
+    const complianceRate = cameras.length > 0 ? Math.round((compliant / cameras.length) * 100) : 0;
+    const snapshot: HistorySnapshot = {
+      id: crypto.randomUUID(),
+      auditId: state.audit.id,
+      label,
+      savedAt: new Date().toISOString(),
+      cameraCount: cameras.length,
+      complianceRate,
+      data: state,
+    };
+    await saveHistorySnapshot(snapshot);
+  },
+
+  deleteSnapshot: async (id) => {
+    await deleteHistorySnapshot(id);
+  },
+
+  restoreSnapshot: (snapshot) => {
+    get().loadAudit(snapshot.data);
+  },
 
   applyQueueItemToCamera: (queueItemId) => {
     const { imageQueue } = get();
