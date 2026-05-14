@@ -1,11 +1,14 @@
 'use client';
-import { Shield, Plus, Upload, Download } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, Plus, Upload, Download, HelpCircle, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
+import { useTheme } from '@/lib/useTheme';
 import { toast } from 'sonner';
 import type { TabId } from '@/app/page';
 import type { AuditState } from '@/lib/types';
+import HelpDialog from '@/components/HelpDialog';
 
 interface Props {
   activeTab: TabId;
@@ -15,6 +18,8 @@ interface Props {
 export default function AppHeader({ setActiveTab }: Props) {
   const { state, newAudit, loadAudit } = useStore();
   const siteName = state.audit.site.siteName;
+  const { theme, toggle } = useTheme();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   function handleNew() {
     if (confirm('Start a new audit? Unsaved changes will be lost.')) {
@@ -96,6 +101,14 @@ export default function AppHeader({ setActiveTab }: Props) {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={toggle} className="text-xs w-8 h-8 p-0">
+          {theme === 'dark'
+            ? <Sun className="w-4 h-4" style={{ color: 'var(--rk-gold)' }} />
+            : <Moon className="w-4 h-4" style={{ color: 'var(--rk-accent)' }} />}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setHelpOpen(true)} className="text-xs gap-1.5">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Button>
         <Button variant="outline" size="sm" onClick={handleNew} className="gap-1.5 text-xs">
           <Plus className="w-3.5 h-3.5" /> New
         </Button>
@@ -106,6 +119,7 @@ export default function AppHeader({ setActiveTab }: Props) {
           <Download className="w-3.5 h-3.5" /> Export
         </Button>
       </div>
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </header>
   );
 }

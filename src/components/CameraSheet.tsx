@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, Download } from 'lucide-react';
+import { generateSingleTestResult } from '@/lib/pdf';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -322,6 +323,11 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
 
           {/* ── TEST RECORD TAB ── */}
           <TabsContent value="testrecord" className="p-6 space-y-6 mt-0">
+            <div className="flex justify-end mb-4">
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={async () => { await generateSingleTestResult(state, camera.id); }}>
+                <Download className="w-3.5 h-3.5" /> Export Certificate PDF
+              </Button>
+            </div>
             <TestRecordPanel
               camera={camera}
               onUpdateRecord={(fields) => updateCameraTestRecord(camera.id, fields)}

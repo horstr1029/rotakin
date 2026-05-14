@@ -92,9 +92,44 @@
 ::-webkit-scrollbar-thumb { background: var(--rk-border2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--rk-text3); }
 
+html.light {
+  --rk-bg: #f0f4f8;
+  --rk-surface: #ffffff;
+  --rk-surface2: #f1f5f9;
+  --rk-border: #e2e8f0;
+  --rk-border2: #cbd5e1;
+  --rk-accent: #0088bb;
+  --rk-text: #0f172a;
+  --rk-text2: #475569;
+  --rk-text3: #94a3b8;
+
+  --background: #f0f4f8;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0088bb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #f1f5f9;
+  --ring: #0088bb;
+}
+
 /* Recharts dark overrides */
 .recharts-text { fill: var(--rk-text2) !important; }
 .recharts-cartesian-axis-tick-value { fill: var(--rk-text2) !important; }
+
+html.light .recharts-text { fill: #475569 !important; }
+html.light .recharts-cartesian-axis-tick-value { fill: #475569 !important; }
 
 @media (max-width: 768px) {
   .rk-sheet-full { width: 100vw !important; max-width: 100vw !important; }

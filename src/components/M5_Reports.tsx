@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/lib/store';
-import { generateSANSReport, generateExecutiveSummary, generateTechnicalAppendix, generateSAPSForensicReport, generateRemediationPlan } from '@/lib/pdf';
+import { generateSANSReport, generateExecutiveSummary, generateTechnicalAppendix, generateSAPSForensicReport, generateRemediationPlan, generateTestResultCards } from '@/lib/pdf';
 import { exportJSON, exportCSV, exportZIP } from '@/lib/exports';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,13 @@ const TEMPLATES = [
     title: 'Remediation Action Plan',
     description: 'Non-compliant cameras only — prioritised upgrade table with suggested equipment and cost bands.',
     sections: ['Non-compliant cameras only', 'Priority rating', 'Suggested equipment', 'Sign-off tracking'],
+  },
+  {
+    id: 'test-cards',
+    title: 'Test Result Certificates',
+    description: 'One-page compliance certificate per camera — matches the standard field test record format.',
+    sections: ['Camera header & site info', 'All 6 test categories with expected vs actual', 'Overall verdict', '%R measurement gauge', 'Problems & recommendations', 'Engineer/witness signature blocks'],
+    available: true,
   },
 ] as const;
 
@@ -95,6 +102,9 @@ export default function M5_Reports() {
           break;
         case 'remediation':
           await generateRemediationPlan(state);
+          break;
+        case 'test-cards':
+          await generateTestResultCards(state);
           break;
         default:
           toast.error('Unknown template');

@@ -708,6 +708,332 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
   doc.save(filename);
 }
 
+async function generateTestCertificatePage(
+  doc: JsPDFInstance,
+  auditData: AuditState,
+  cam: { id: string } & Record<string, unknown>,
+  isFirstPage: boolean
+): Promise<void> {
+  const { audit } = auditData;
+  const { site, standards } = audit;
+  const camera = audit.cameras.find(c => c.id === (cam as { id: string }).id);
+  if (!camera) return;
+
+  const tr = camera.testRecord;
+  const pageW = 210;
+  const pageH = 297;
+  const margin = 15;
+  const contentW = pageW - margin * 2;
+
+  const C = {
+    bg: [11, 15, 26], surface: [17, 24, 39], surface2: [26, 34, 53],
+    accent: [0, 194, 255], gold: [240, 180, 41], green: [16, 217, 138],
+    red: [255, 71, 87], text: [232, 237, 245], text2: [136, 153, 180],
+    text3: [74, 95, 122], border2: [36, 51, 82], white: [255, 255, 255],
+  };
+
+  function setFill(rgb: number[]) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); }
+  function setTextColor(rgb: number[]) { doc.setTextColor(rgb[0], rgb[1], rgb[2]); }
+  function setDrawColor(rgb: number[]) { doc.setDrawColor(rgb[0], rgb[1], rgb[2]); }
+
+  if (!isFirstPage) doc.addPage();
+
+  setFill(C.bg);
+  doc.rect(0, 0, pageW, pageH, 'F');
+
+  // 1. Top accent bar
+  setFill(C.accent);
+  doc.rect(0, 0, pageW, 3, 'F');
+
+  // 2. Header row (y=8, height=20)
+  const headerY = 8;
+  if (audit.branding.orgLogo) {
+    try { doc.addImage(audit.branding.orgLogo, 'PNG', margin, headerY, 35, 15, undefined, 'FAST'); } catch { /* skip */ }
+  }
+  setTextColor(C.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('ROTAKIN CCTV TEST CERTIFICATE', pageW / 2, headerY + 9, { align: 'center' });
+  if (audit.branding.clientLogo) {
+    try { doc.addImage(audit.branding.clientLogo, 'PNG', pageW - margin - 35, headerY, 35, 15, undefined, 'FAST'); } catch { /* skip */ }
+  }
+
+  // 3. Camera info box (y=32, height=28)
+  const camBoxY = 32;
+  setFill(C.surface);
+  doc.roundedRect(margin, camBoxY, contentW, 28, 3, 3, 'F');
+  setTextColor(C.text2);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Camera Ref', margin + 4, camBoxY + 7);
+  setTextColor(C.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(camera.ref || '—', margin + 4, camBoxY + 16);
+  setTextColor(C.text2);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${camera.make} ${camera.model}`.trim() || '—', margin + 4, camBoxY + 23);
+
+  const rightX = pageW - margin - 4;
+  const infoItems = [
+    ['Site', site.siteName || '—'],
+    ['Date', site.auditDate || '—'],
+    ['Engineer', site.engineerName || '—'],
+  ];
+  infoItems.forEach(([label, value], i) => {
+    const iy = camBoxY + 8 + i * 8;
+    setTextColor(C.text2);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, rightX - 60, iy);
+    setTextColor(C.text);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, rightX, iy, { align: 'right' });
+  });
+
+  // 4. Standard badge bar (y=64, height=12)
+  const standardY = 64;
+  setFill(C.surface2);
+  doc.rect(margin, standardY, contentW, 12, 'F');
+  setTextColor(C.text2);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const reqStandard = standards.find(s => s.name === camera.requiredStandard);
+  doc.text(`Required: ${camera.requiredStandard || '—'}`, margin + 4, standardY + 8);
+  doc.text(`Target: ${reqStandard ? `≥${reqStandard.minR}%R` : '—'}`, pageW / 2, standardY + 8, { align: 'center' });
+  doc.text(`Distance: ${tr.distanceToObjective || '—'}`, pageW - margin - 4, standardY + 8, { align: 'right' });
+
+  // 5. Test time/lux row (y=80, height=10)
+  const timeY = 80;
+  setFill(C.surface);
+  doc.rect(margin, timeY, contentW, 10, 'F');
+  setTextColor(C.text2);
+  doc.setFontSize(7);
+  const timeItems = [
+    `Day: ${tr.timeDay || '—'}`,
+    `Night: ${tr.timeNight || '—'}`,
+    `Lux: ${tr.luxLevel || '—'}`,
+    `FOV: ${tr.verticalFOV || '—'}`,
+  ];
+  const colW = contentW / timeItems.length;
+  timeItems.forEach((item, i) => {
+    doc.text(item, margin + i * colW + colW / 2, timeY + 7, { align: 'center' });
+  });
+
+  // 6. TEST RESULTS TABLE (y=94)
+  const tableStartY = 94;
+  const rowH = 10;
+  const colWidths = [contentW * 0.4, contentW * 0.25, contentW * 0.25, contentW * 0.1];
+  const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1], margin + colWidths[0] + colWidths[1] + colWidths[2]];
+
+  setFill(C.surface2);
+  doc.rect(margin, tableStartY, contentW, rowH, 'F');
+  setTextColor(C.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  ['TEST CATEGORY', 'EXPECTED', 'ACTUAL', 'RESULT'].forEach((h, i) => {
+    doc.text(h, colX[i] + 2, tableStartY + 7);
+  });
+
+  const testCategories = [
+    { label: 'Facial Test', cat: tr.facialTest },
+    { label: 'Resolution', cat: tr.resolution },
+    { label: '%R (Rotakin)', cat: tr.rotakinR },
+    { label: 'Depth of Focus', cat: tr.depthOfFocus },
+    { label: 'Colour Separation', cat: tr.colourSeparation },
+    { label: 'Motion Blur', cat: tr.motionBlur },
+  ];
+
+  testCategories.forEach(({ label, cat }, i) => {
+    const ry = tableStartY + rowH + i * rowH;
+    setFill(i % 2 === 0 ? C.surface : C.surface2);
+    doc.rect(margin, ry, contentW, rowH, 'F');
+    setTextColor(C.text);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(label, colX[0] + 2, ry + 7);
+    setTextColor(C.text2);
+    doc.text(cat.expected || '—', colX[1] + 2, ry + 7);
+    setTextColor(C.text2);
+    doc.text(cat.actual || '—', colX[2] + 2, ry + 7);
+
+    if (!cat.actual || cat.actual === 'N/A' || cat.actual.trim() === '') {
+      setTextColor(C.text3);
+      doc.setFont('helvetica', 'normal');
+      doc.text('—', colX[3] + colWidths[3] / 2, ry + 7, { align: 'center' });
+    } else if (cat.actual.trim().toLowerCase() === cat.expected.trim().toLowerCase()) {
+      setTextColor(C.green);
+      doc.setFont('helvetica', 'bold');
+      doc.text('✓', colX[3] + colWidths[3] / 2, ry + 7, { align: 'center' });
+    } else {
+      setTextColor(C.red);
+      doc.setFont('helvetica', 'bold');
+      doc.text('✗', colX[3] + colWidths[3] / 2, ry + 7, { align: 'center' });
+    }
+  });
+
+  const afterTableY = tableStartY + rowH + testCategories.length * rowH;
+
+  // 7. OVERALL VERDICT box (y after table + 8, height=20)
+  const verdictY = afterTableY + 8;
+  const verdictH = 20;
+  let verdictBg: number[], verdictBorderColor: number[], verdictTextColor: number[], verdictText: string;
+  if (tr.verdict === 'pass') {
+    verdictBg = [16, 217, 138]; verdictBorderColor = C.green; verdictTextColor = C.green; verdictText = 'PASS';
+  } else if (tr.verdict === 'fail') {
+    verdictBg = [255, 71, 87]; verdictBorderColor = C.red; verdictTextColor = C.red; verdictText = 'FAIL';
+  } else {
+    verdictBg = [240, 180, 41]; verdictBorderColor = C.gold; verdictTextColor = C.gold; verdictText = 'PENDING';
+  }
+  doc.setFillColor(verdictBg[0], verdictBg[1], verdictBg[2]);
+  doc.setGState(new (doc as JsPDFInstance).GState({ opacity: 0.15 }));
+  doc.roundedRect(margin, verdictY, contentW, verdictH, 3, 3, 'F');
+  doc.setGState(new (doc as JsPDFInstance).GState({ opacity: 1 }));
+  setDrawColor(verdictBorderColor);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, verdictY, contentW, verdictH, 3, 3, 'S');
+  setTextColor(verdictTextColor);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(verdictText, pageW / 2, verdictY + 14, { align: 'center' });
+
+  // 8. %R measurement bar (y after verdict + 6, height=16)
+  const rBarY = verdictY + verdictH + 6;
+  setFill(C.surface);
+  doc.rect(margin, rBarY, contentW, 16, 'F');
+  const achievedLevel = classifyLevel(camera.measuredR, standards);
+  const levelColor = achievedLevel ? hexToRgb(achievedLevel.color) : C.text3;
+  setTextColor(C.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text(`Measured %R: ${camera.measuredR !== null ? camera.measuredR + '%' : '—'}`, margin + 4, rBarY + 7);
+  setTextColor(levelColor);
+  doc.text(`Achieved Level: ${achievedLevel ? achievedLevel.name : '—'}`, pageW - margin - 4, rBarY + 7, { align: 'right' });
+
+  const progressY = rBarY + 10;
+  const progressH = 3;
+  setFill(C.surface2);
+  doc.rect(margin, progressY, contentW, progressH, 'F');
+  if (camera.measuredR !== null) {
+    const fillW = Math.min(1, camera.measuredR / 120) * contentW;
+    setFill(levelColor);
+    doc.rect(margin, progressY, fillW, progressH, 'F');
+  }
+
+  // 9. Problems / Recommendations
+  let currentY = rBarY + 16 + 6;
+  const hasProblems = tr.problemsMST || tr.recommendationsMST || tr.problemsClient || tr.recommendationsClient;
+  if (hasProblems) {
+    const halfW = (contentW - 4) / 2;
+    const sections = [
+      { label: 'MST Projects', problems: tr.problemsMST, recommendations: tr.recommendationsMST },
+      { label: 'Client', problems: tr.problemsClient, recommendations: tr.recommendationsClient },
+    ];
+    sections.forEach((section, si) => {
+      if (!section.problems && !section.recommendations) return;
+      const sx = margin + si * (halfW + 4);
+      let sy = currentY;
+      setTextColor(C.text2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(section.label, sx, sy);
+      sy += 5;
+      if (section.problems) {
+        setTextColor(C.red);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Problems:', sx, sy);
+        setTextColor(C.text);
+        doc.setFont('helvetica', 'normal');
+        const pLines = doc.splitTextToSize(section.problems, halfW - 4);
+        doc.text(pLines, sx, sy + 4);
+        sy += 4 + pLines.length * 4;
+      }
+      if (section.recommendations) {
+        setTextColor(C.gold);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Recommendations:', sx, sy + 2);
+        setTextColor(C.text);
+        doc.setFont('helvetica', 'normal');
+        const rLines = doc.splitTextToSize(section.recommendations, halfW - 4);
+        doc.text(rLines, sx, sy + 6);
+      }
+    });
+    currentY += 30;
+  }
+
+  // 10. Signature blocks (y=240 or after content + gap)
+  const sigY = Math.max(currentY + 10, 240);
+  const halfSigW = (contentW - 4) / 2;
+  const sigBlocks = [
+    { label: 'ENGINEER', name: site.engineerName, x: margin },
+    { label: 'WITNESS', name: site.witnessName, x: margin + halfSigW + 4 },
+  ];
+  sigBlocks.forEach(({ label, name, x }) => {
+    setFill(C.surface);
+    doc.roundedRect(x, sigY, halfSigW, 30, 2, 2, 'F');
+    setTextColor(C.text2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text(label, x + 4, sigY + 7);
+    setTextColor(C.text);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(name || '___________________________', x + 4, sigY + 15);
+    setDrawColor(C.border2);
+    doc.setLineWidth(0.3);
+    doc.line(x + 4, sigY + 26, x + halfSigW - 4, sigY + 26);
+    setTextColor(C.text3);
+    doc.setFontSize(6);
+    doc.text('Signature', x + 4, sigY + 29);
+  });
+
+  // 11. Bottom accent bar
+  setFill(C.accent);
+  doc.rect(0, pageH - 3, pageW, 3, 'F');
+
+  // 12. Footer text
+  setTextColor(C.text2);
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generated by Rotakin v3 | ${new Date().toLocaleString()}`, pageW / 2, pageH - 6, { align: 'center' });
+}
+
+export async function generateTestResultCards(auditData: AuditState): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  await import('jspdf-autotable');
+
+  const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const { cameras } = auditData.audit;
+
+  for (let i = 0; i < cameras.length; i++) {
+    await generateTestCertificatePage(doc, auditData, cameras[i] as unknown as { id: string } & Record<string, unknown>, i === 0);
+  }
+
+  const { site } = auditData.audit;
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `Rotakin_TestCertificates_${site.reportRef || site.siteName || 'report'}_${date}.pdf`.replace(/\s+/g, '_');
+  doc.save(filename);
+}
+
+export async function generateSingleTestResult(auditData: AuditState, cameraId: string): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  await import('jspdf-autotable');
+
+  const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const camera = auditData.audit.cameras.find(c => c.id === cameraId);
+  if (!camera) return;
+
+  await generateTestCertificatePage(doc, auditData, camera as unknown as { id: string } & Record<string, unknown>, true);
+
+  const { site } = auditData.audit;
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `Rotakin_TestCert_${camera.ref || cameraId}_${date}.pdf`.replace(/\s+/g, '_');
+  doc.save(filename);
+}
+
 function hexToRgb(hex: string): number[] {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16);
