@@ -74,6 +74,7 @@ export interface Camera {
   };
   auditSteps: AuditStep[];
   faceLines: FaceLine[];
+  testRecord: CameraTestRecord;
 }
 
 export interface ImageSlot {
@@ -96,6 +97,30 @@ export interface FaceLine {
   expected: string;
   techRead: string;
   obsRead: string;
+}
+
+export interface TestCategory {
+  expected: string;
+  actual: string;
+}
+
+export interface CameraTestRecord {
+  timeDay: string;
+  timeNight: string;
+  luxLevel: string;
+  verticalFOV: string;
+  distanceToObjective: string;
+  facialTest: TestCategory;
+  resolution: TestCategory;
+  rotakinR: TestCategory;
+  depthOfFocus: TestCategory;
+  colourSeparation: TestCategory;
+  motionBlur: TestCategory;
+  verdict: 'pass' | 'fail' | 'pending';
+  problemsMST: string;
+  recommendationsMST: string;
+  problemsClient: string;
+  recommendationsClient: string;
 }
 
 export type ImageStepType = 'static' | 'smear' | 'colour' | 'face' | 'extra1' | 'extra2';

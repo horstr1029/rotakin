@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useStore } from '@/lib/store';
-import type { Camera, ImageSlot, FaceLine } from '@/lib/types';
+import type { Camera, ImageSlot, FaceLine, CameraTestRecord, TestCategory } from '@/lib/types';
 import { classifyLevel } from '@/lib/standards';
 import { cn } from '@/lib/utils';
 import AnnotationViewer from '@/components/AnnotationViewer';
@@ -44,7 +44,7 @@ interface Props {
 }
 
 export default function CameraSheet({ camera, open, onOpenChange }: Props) {
-  const { state, updateCamera, updateCameraImage, updateAuditStep, updateFaceLine } = useStore();
+  const { state, updateCamera, updateCameraImage, updateAuditStep, updateFaceLine, updateCameraTestRecord, updateTestCategory, applyStandardExpected } = useStore();
   const { standards, auditStepDefs } = state.audit;
 
   const [annotationViewerItem, setAnnotationViewerItem] = useState<QueueItem | null>(null);
@@ -98,13 +98,14 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
 
         <Tabs defaultValue="details" className="flex flex-col">
           <TabsList
-            className="grid grid-cols-4 rounded-none border-b h-auto"
+            className="grid grid-cols-5 rounded-none border-b h-auto"
             style={{ background: 'var(--rk-surface2)', borderColor: 'var(--rk-border)' }}
           >
             <TabsTrigger value="details" className="text-xs py-3 rounded-none">Details</TabsTrigger>
             <TabsTrigger value="images" className="text-xs py-3 rounded-none">Images</TabsTrigger>
             <TabsTrigger value="steps" className="text-xs py-3 rounded-none">Audit Steps</TabsTrigger>
             <TabsTrigger value="facial" className="text-xs py-3 rounded-none">Facial Scoring</TabsTrigger>
+            <TabsTrigger value="testrecord" className="text-xs py-3 rounded-none">Test Record</TabsTrigger>
           </TabsList>
 
           {/* ── DETAILS TAB ── */}
@@ -134,7 +135,7 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
                 <FieldLabel>Required Standard</FieldLabel>
                 <Select
                   value={camera.requiredStandard}
-                  onValueChange={(v: string | null) => v && updateCamera(camera.id, { requiredStandard: v })}
+                  onValueChange={(v: string | null) => { if (v) { updateCamera(camera.id, { requiredStandard: v }); applyStandardExpected(camera.id, v); } }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -318,6 +319,15 @@ export default function CameraSheet({ camera, open, onOpenChange }: Props) {
           <TabsContent value="facial" className="p-6 mt-0">
             <FacialScoringPanel camera={camera} onUpdateLine={(lineNo, fields) => updateFaceLine(camera.id, lineNo, fields)} />
           </TabsContent>
+
+          {/* ── TEST RECORD TAB ── */}
+          <TabsContent value="testrecord" className="p-6 space-y-6 mt-0">
+            <TestRecordPanel
+              camera={camera}
+              onUpdateRecord={(fields) => updateCameraTestRecord(camera.id, fields)}
+              onUpdateCategory={(cat, fields) => updateTestCategory(camera.id, cat, fields)}
+            />
+          </TabsContent>
         </Tabs>
       </SheetContent>
 
@@ -461,6 +471,170 @@ function ImageSlotCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Test Record Panel ────────────────────────────────────────────────────────
+type TestCategoryKey = keyof Pick<CameraTestRecord, 'facialTest'|'resolution'|'rotakinR'|'depthOfFocus'|'colourSeparation'|'motionBlur'>;
+
+const TEST_CATEGORIES: { key: TestCategoryKey; label: string }[] = [
+  { key: 'facialTest', label: 'Facial Test' },
+  { key: 'resolution', label: 'Resolution' },
+  { key: 'rotakinR', label: '%R (Rotakin)' },
+  { key: 'depthOfFocus', label: 'Depth of Focus' },
+  { key: 'colourSeparation', label: 'Colour Separation' },
+  { key: 'motionBlur', label: 'Motion Blur' },
+];
+
+function TestRecordPanel({
+  camera,
+  onUpdateRecord,
+  onUpdateCategory,
+}: {
+  camera: Camera;
+  onUpdateRecord: (fields: Partial<CameraTestRecord>) => void;
+  onUpdateCategory: (cat: TestCategoryKey, fields: Partial<TestCategory>) => void;
+}) {
+  const tr = camera.testRecord;
+  const verdictColor = tr.verdict === 'pass' ? 'var(--rk-green)' : tr.verdict === 'fail' ? 'var(--rk-red)' : 'var(--rk-gold)';
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        {([
+          { field: 'timeDay', label: 'Time Day' },
+          { field: 'timeNight', label: 'Time Night' },
+          { field: 'luxLevel', label: 'Lux Level' },
+          { field: 'verticalFOV', label: 'Vertical FOV' },
+          { field: 'distanceToObjective', label: 'Distance to Objective' },
+        ] as { field: keyof Pick<CameraTestRecord, 'timeDay'|'timeNight'|'luxLevel'|'verticalFOV'|'distanceToObjective'>; label: string }[]).map(({ field, label }) => (
+          <div key={field} className="space-y-1.5">
+            <FieldLabel>{label}</FieldLabel>
+            <Input
+              value={tr[field]}
+              onChange={e => onUpdateRecord({ [field]: e.target.value })}
+              placeholder={label}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b" style={{ borderColor: 'var(--rk-border)' }}>
+              {['Test', 'Expected', 'Actual'].map(h => (
+                <th key={h} className="text-left py-2 px-2 font-semibold uppercase tracking-wider" style={{ color: 'var(--rk-text2)' }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TEST_CATEGORIES.map(({ key, label }) => (
+              <tr key={key} className="border-b" style={{ borderColor: 'var(--rk-border)' }}>
+                <td className="py-2 px-2 font-medium w-40" style={{ color: 'var(--rk-text)' }}>{label}</td>
+                <td className="py-1 px-2 w-32">
+                  <span
+                    className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold"
+                    style={{ background: 'var(--rk-surface2)', color: 'var(--rk-text2)', border: '1px solid var(--rk-border)' }}
+                  >
+                    {tr[key].expected || '—'}
+                  </span>
+                </td>
+                <td className="py-1 px-1">
+                  <Input
+                    value={tr[key].actual}
+                    onChange={e => onUpdateCategory(key, { actual: e.target.value })}
+                    placeholder="Enter result"
+                    className="h-7 text-xs"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-3">
+        <FieldLabel>Verdict</FieldLabel>
+        <div className="flex items-center gap-3">
+          {(['pass', 'fail', 'pending'] as const).map(v => {
+            const colorMap = { pass: 'var(--rk-green)', fail: 'var(--rk-red)', pending: 'var(--rk-gold)' };
+            const color = colorMap[v];
+            const isSelected = tr.verdict === v;
+            return (
+              <Button
+                key={v}
+                variant="outline"
+                size="sm"
+                onClick={() => onUpdateRecord({ verdict: v })}
+                className="text-xs h-8 px-4 font-bold"
+                style={{
+                  background: isSelected ? color + '22' : undefined,
+                  borderColor: isSelected ? color : undefined,
+                  color: isSelected ? color : undefined,
+                }}
+              >
+                {v.toUpperCase()}
+              </Button>
+            );
+          })}
+          <div
+            className="ml-auto px-4 py-1.5 rounded font-extrabold text-sm"
+            style={{ background: verdictColor + '22', color: verdictColor, border: `1px solid ${verdictColor}` }}
+          >
+            {tr.verdict.toUpperCase()}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--rk-surface2)', border: '1px solid var(--rk-border)' }}>
+          <div className="text-sm font-bold" style={{ color: 'var(--rk-text)' }}>MST Projects</div>
+          <div className="space-y-1.5">
+            <FieldLabel>Problems Identified</FieldLabel>
+            <Textarea
+              value={tr.problemsMST}
+              onChange={e => onUpdateRecord({ problemsMST: e.target.value })}
+              placeholder="Problems..."
+              className="min-h-[70px] resize-y text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Recommendations</FieldLabel>
+            <Textarea
+              value={tr.recommendationsMST}
+              onChange={e => onUpdateRecord({ recommendationsMST: e.target.value })}
+              placeholder="Recommendations..."
+              className="min-h-[70px] resize-y text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--rk-surface2)', border: '1px solid var(--rk-border)' }}>
+          <div className="text-sm font-bold" style={{ color: 'var(--rk-text)' }}>Client</div>
+          <div className="space-y-1.5">
+            <FieldLabel>Problems Identified</FieldLabel>
+            <Textarea
+              value={tr.problemsClient}
+              onChange={e => onUpdateRecord({ problemsClient: e.target.value })}
+              placeholder="Problems..."
+              className="min-h-[70px] resize-y text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Recommendations</FieldLabel>
+            <Textarea
+              value={tr.recommendationsClient}
+              onChange={e => onUpdateRecord({ recommendationsClient: e.target.value })}
+              placeholder="Recommendations..."
+              className="min-h-[70px] resize-y text-xs"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

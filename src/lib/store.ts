@@ -1,8 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot } from './types';
-import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS } from './standards';
+import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot, CameraTestRecord, TestCategory } from './types';
+import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS, STANDARD_EXPECTED } from './standards';
 import { loadAuditFromDB, saveAuditToDB, saveHistorySnapshot, deleteHistorySnapshot } from './storage';
 import { classifyLevel } from './standards';
 
@@ -80,6 +80,24 @@ function createBlankCamera(stepDefs: StepDef[]): Camera {
       techRead: '',
       obsRead: '',
     })),
+    testRecord: {
+      timeDay: '',
+      timeNight: '',
+      luxLevel: '',
+      verticalFOV: '',
+      distanceToObjective: '',
+      facialTest: { expected: '2 of 4', actual: '' },
+      resolution: { expected: 'Band G', actual: '' },
+      rotakinR: { expected: '75%+', actual: '' },
+      depthOfFocus: { expected: '6 of 7', actual: '' },
+      colourSeparation: { expected: '9 of 12', actual: '' },
+      motionBlur: { expected: 'Pass', actual: '' },
+      verdict: 'pending',
+      problemsMST: '',
+      recommendationsMST: '',
+      problemsClient: '',
+      recommendationsClient: '',
+    },
   };
 }
 
@@ -122,6 +140,10 @@ interface StoreState {
   clearQueue: () => void;
   setProcessingQueue: (v: boolean) => void;
   applyQueueItemToCamera: (queueItemId: string) => void;
+
+  updateCameraTestRecord: (cameraId: string, fields: Partial<CameraTestRecord>) => void;
+  updateTestCategory: (cameraId: string, category: keyof Pick<CameraTestRecord, 'facialTest'|'resolution'|'rotakinR'|'depthOfFocus'|'colourSeparation'|'motionBlur'>, fields: Partial<TestCategory>) => void;
+  applyStandardExpected: (cameraId: string, standardName: string) => void;
 
   // History actions
   saveSnapshot: (label: string) => Promise<void>;
@@ -411,6 +433,72 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
     get().scheduleSave();
     return cam.id;
+  },
+
+  updateCameraTestRecord: (cameraId, fields) => {
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: s.state.audit.cameras.map(c =>
+            c.id === cameraId
+              ? { ...c, testRecord: { ...c.testRecord, ...fields } }
+              : c
+          ),
+        },
+      },
+    }));
+    get().scheduleSave();
+  },
+
+  updateTestCategory: (cameraId, category, fields) => {
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: s.state.audit.cameras.map(c =>
+            c.id === cameraId
+              ? { ...c, testRecord: { ...c.testRecord, [category]: { ...c.testRecord[category], ...fields } } }
+              : c
+          ),
+        },
+      },
+    }));
+    get().scheduleSave();
+  },
+
+  applyStandardExpected: (cameraId, standardName) => {
+    const expected = STANDARD_EXPECTED[standardName];
+    if (!expected) return;
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: s.state.audit.cameras.map(c => {
+            if (c.id !== cameraId) return c;
+            return {
+              ...c,
+              testRecord: {
+                ...c.testRecord,
+                facialTest: { ...c.testRecord.facialTest, expected: expected.facialTest.expected },
+                resolution: { ...c.testRecord.resolution, expected: expected.resolution.expected },
+                rotakinR: { ...c.testRecord.rotakinR, expected: expected.rotakinR.expected },
+                depthOfFocus: { ...c.testRecord.depthOfFocus, expected: expected.depthOfFocus.expected },
+                colourSeparation: { ...c.testRecord.colourSeparation, expected: expected.colourSeparation.expected },
+                motionBlur: { ...c.testRecord.motionBlur, expected: expected.motionBlur.expected },
+              },
+            };
+          }),
+        },
+      },
+    }));
+    get().scheduleSave();
   },
 
   // ── Queue actions ────────────────────────────────────────────────────────

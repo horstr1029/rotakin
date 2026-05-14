@@ -1,4 +1,4 @@
-import type { Standard, StepDef, Camera } from './types';
+import type { Standard, StepDef, Camera, CameraTestRecord } from './types';
 
 export const DEFAULT_STANDARDS: Standard[] = [
   { level: 5, name: 'Identification', minR: 120, color: '#10d98a' },
@@ -34,6 +34,14 @@ export function classifyLevel(rValue: number | null, standards: Standard[]): Sta
   }
   return { level: 0, name: 'Below Minimum', minR: 0, color: '#ff4757' };
 }
+
+export const STANDARD_EXPECTED: Record<string, Omit<CameraTestRecord, 'timeDay'|'timeNight'|'luxLevel'|'verticalFOV'|'distanceToObjective'|'verdict'|'problemsMST'|'recommendationsMST'|'problemsClient'|'recommendationsClient'>> = {
+  'Identification': { facialTest:{expected:'4 of 4',actual:''}, resolution:{expected:'Band A',actual:''}, rotakinR:{expected:'120%+',actual:''}, depthOfFocus:{expected:'7 of 7',actual:''}, colourSeparation:{expected:'12 of 12',actual:''}, motionBlur:{expected:'Pass',actual:''} },
+  'Recognition':    { facialTest:{expected:'4 of 4',actual:''}, resolution:{expected:'Band B',actual:''}, rotakinR:{expected:'90%+',actual:''},  depthOfFocus:{expected:'7 of 7',actual:''}, colourSeparation:{expected:'10 of 12',actual:''}, motionBlur:{expected:'Pass',actual:''} },
+  'Observation':    { facialTest:{expected:'2 of 4',actual:''}, resolution:{expected:'Band G',actual:''}, rotakinR:{expected:'75%+',actual:''},  depthOfFocus:{expected:'6 of 7',actual:''}, colourSeparation:{expected:'9 of 12',actual:''},  motionBlur:{expected:'Pass',actual:''} },
+  'Detection':      { facialTest:{expected:'N/A',actual:''},    resolution:{expected:'N/A',actual:''},    rotakinR:{expected:'10%+',actual:''},  depthOfFocus:{expected:'N/A',actual:''},    colourSeparation:{expected:'N/A',actual:''},         motionBlur:{expected:'N/A',actual:''} },
+  'Monitoring':     { facialTest:{expected:'N/A',actual:''},    resolution:{expected:'N/A',actual:''},    rotakinR:{expected:'5%+',actual:''},   depthOfFocus:{expected:'N/A',actual:''},    colourSeparation:{expected:'N/A',actual:''},         motionBlur:{expected:'N/A',actual:''} },
+};
 
 export function getCameraHealth(camera: Camera, standards: Standard[]): 'green' | 'yellow' | 'red' {
   const achieved = classifyLevel(camera.measuredR, standards);

@@ -60,6 +60,24 @@ export function parseCSV(content: string, stepDefs: StepDef[] = DEFAULT_STEP_DEF
         techRead: '',
         obsRead: '',
       })),
+      testRecord: {
+        timeDay: '',
+        timeNight: '',
+        luxLevel: '',
+        verticalFOV: '',
+        distanceToObjective: '',
+        facialTest: { expected: '2 of 4', actual: '' },
+        resolution: { expected: 'Band G', actual: '' },
+        rotakinR: { expected: '75%+', actual: '' },
+        depthOfFocus: { expected: '6 of 7', actual: '' },
+        colourSeparation: { expected: '9 of 12', actual: '' },
+        motionBlur: { expected: 'Pass', actual: '' },
+        verdict: 'pending',
+        problemsMST: '',
+        recommendationsMST: '',
+        problemsClient: '',
+        recommendationsClient: '',
+      },
     });
   }
 

@@ -457,6 +457,152 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
       doc.setFontSize(9);
       doc.text(`Facial Score: ${score}% (${matches}/10 matches) — ${score >= 80 ? 'PASS' : 'FAIL'}`, margin + 5, scoreY + 8);
     }
+
+    // Test Record section
+    const tr = cam.testRecord;
+    const hasTestData = tr && (
+      tr.timeDay || tr.timeNight || tr.luxLevel || tr.verticalFOV || tr.distanceToObjective ||
+      tr.facialTest.actual || tr.resolution.actual || tr.rotakinR.actual ||
+      tr.depthOfFocus.actual || tr.colourSeparation.actual || tr.motionBlur.actual ||
+      tr.problemsMST || tr.recommendationsMST || tr.problemsClient || tr.recommendationsClient
+    );
+
+    if (hasTestData) {
+      const afterPrevY = (doc as JsPDFInstance).lastAutoTable.finalY + 8;
+
+      setTextColor(C.accent);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('TEST RECORD', margin, afterPrevY);
+
+      const headerInfoRow = [
+        `Day: ${tr.timeDay || '—'}`,
+        `Night: ${tr.timeNight || '—'}`,
+        `Lux: ${tr.luxLevel || '—'}`,
+        `Distance: ${tr.distanceToObjective || '—'}`,
+        `V-FOV: ${tr.verticalFOV || '—'}`,
+      ].join('   ');
+
+      setTextColor(C.text2);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(headerInfoRow, margin, afterPrevY + 6);
+
+      const testCategoryRows = [
+        { label: 'Facial Test', cat: tr.facialTest },
+        { label: 'Resolution', cat: tr.resolution },
+        { label: '%R (Rotakin)', cat: tr.rotakinR },
+        { label: 'Depth of Focus', cat: tr.depthOfFocus },
+        { label: 'Colour Separation', cat: tr.colourSeparation },
+        { label: 'Motion Blur', cat: tr.motionBlur },
+      ].map(({ label, cat }) => {
+        const matchFlag =
+          cat.actual && cat.actual !== 'N/A'
+            ? cat.actual.trim().toLowerCase() === cat.expected.trim().toLowerCase()
+              ? 'Match'
+              : 'No Match'
+            : '—';
+        return [label, cat.expected || '—', cat.actual || '—', matchFlag];
+      });
+
+      doc.autoTable({
+        startY: afterPrevY + 11,
+        head: [['Test', 'Expected', 'Actual', 'Match']],
+        body: testCategoryRows,
+        margin: { left: margin, right: margin },
+        styles: {
+          fillColor: C.surface,
+          textColor: C.text,
+          lineColor: C.surface2,
+          lineWidth: 0.3,
+          fontSize: 8,
+        },
+        headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [15, 22, 36] },
+        columnStyles: {
+          0: { cellWidth: 45 },
+          3: { cellWidth: 22, fontStyle: 'bold' },
+        },
+        didParseCell: (data: { section: string; column: { index: number }; cell: { styles: { textColor: number[] } }; row: { raw: string[] } }) => {
+          if (data.section === 'body' && data.column.index === 3) {
+            const v = data.row.raw[3];
+            if (v === 'Match') data.cell.styles.textColor = C.green;
+            else if (v === 'No Match') data.cell.styles.textColor = C.red;
+          }
+        },
+      });
+
+      const verdictY = (doc as JsPDFInstance).lastAutoTable.finalY + 6;
+      const verdictColor = tr.verdict === 'pass' ? C.green : tr.verdict === 'fail' ? C.red : C.gold;
+      setFill(verdictColor);
+      doc.roundedRect(margin, verdictY, contentW, 12, 2, 2, 'F');
+      setTextColor(C.bg);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`VERDICT: ${tr.verdict.toUpperCase()}`, margin + 5, verdictY + 8);
+
+      let notesY = verdictY + 18;
+
+      if (tr.problemsMST || tr.recommendationsMST) {
+        setTextColor(C.text2);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('MST Projects', margin, notesY);
+        notesY += 5;
+        if (tr.problemsMST) {
+          setTextColor(C.text2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text('Problems:', margin, notesY);
+          setTextColor(C.text);
+          doc.setFont('helvetica', 'normal');
+          const pLines = doc.splitTextToSize(tr.problemsMST, contentW - 10);
+          doc.text(pLines, margin + 25, notesY);
+          notesY += pLines.length * 4 + 3;
+        }
+        if (tr.recommendationsMST) {
+          setTextColor(C.text2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text('Recommendations:', margin, notesY);
+          setTextColor(C.text);
+          doc.setFont('helvetica', 'normal');
+          const rLines = doc.splitTextToSize(tr.recommendationsMST, contentW - 10);
+          doc.text(rLines, margin + 35, notesY);
+          notesY += rLines.length * 4 + 3;
+        }
+        notesY += 4;
+      }
+
+      if (tr.problemsClient || tr.recommendationsClient) {
+        setTextColor(C.text2);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('Client', margin, notesY);
+        notesY += 5;
+        if (tr.problemsClient) {
+          setTextColor(C.text2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text('Problems:', margin, notesY);
+          setTextColor(C.text);
+          doc.setFont('helvetica', 'normal');
+          const pLines = doc.splitTextToSize(tr.problemsClient, contentW - 10);
+          doc.text(pLines, margin + 25, notesY);
+          notesY += pLines.length * 4 + 3;
+        }
+        if (tr.recommendationsClient) {
+          setTextColor(C.text2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text('Recommendations:', margin, notesY);
+          setTextColor(C.text);
+          doc.setFont('helvetica', 'normal');
+          const rLines = doc.splitTextToSize(tr.recommendationsClient, contentW - 10);
+          doc.text(rLines, margin + 35, notesY);
+        }
+      }
+    }
   }
 
   // ─── LAST PAGE: Declarations ─────────────────────────────────────────────────
