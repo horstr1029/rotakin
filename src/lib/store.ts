@@ -111,6 +111,7 @@ interface StoreState {
   newAudit: () => void;
   loadAudit: (data: AuditState) => void;
   importCameras: (cameras: Camera[]) => void;
+  addCameraWithRef: (ref: string) => string;
 
   // Queue actions
   setImageQueue: (queue: QueueItem[]) => void;
@@ -392,6 +393,24 @@ export const useStore = create<StoreState>((set, get) => ({
       },
     }));
     get().scheduleSave();
+  },
+
+  addCameraWithRef: (ref) => {
+    const stepDefs = get().state.audit.auditStepDefs;
+    const cam = createBlankCamera(stepDefs);
+    cam.ref = ref;
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: [...s.state.audit.cameras, cam],
+        },
+      },
+    }));
+    get().scheduleSave();
+    return cam.id;
   },
 
   // ── Queue actions ────────────────────────────────────────────────────────

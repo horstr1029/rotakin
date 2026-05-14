@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback } from 'react';
 import {
   FolderOpen, Upload, Play, Trash2, ImageIcon, CheckCircle2,
-  AlertCircle, Clock, Loader2, HelpCircle, Eye, ChevronDown, ChevronUp,
+  AlertCircle, Clock, Loader2, HelpCircle, Eye, ChevronDown, ChevronUp, PlusCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { useStore } from '@/lib/store';
 import { parseFilename, isImageFile } from '@/lib/parseFilename';
 import { ImagePipeline } from '@/lib/imagePipeline';
@@ -49,6 +50,7 @@ export default function M2_ImageImporter() {
     clearQueue,
     setProcessingQueue,
     applyQueueItemToCamera,
+    addCameraWithRef,
   } = useStore();
 
   const cameras = state.audit.cameras;
@@ -58,6 +60,7 @@ export default function M2_ImageImporter() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [viewerItem, setViewerItem] = useState<QueueItem | null>(null);
+  const [newRefsDialog, setNewRefsDialog] = useState<{ refs: string[]; files: File[] } | null>(null);
   const [preprocessingOpen, setPreprocessingOpen] = useState(false);
   const [preprocessing, setPreprocessing] = useState({
     brightness: 0,
@@ -66,16 +69,10 @@ export default function M2_ImageImporter() {
   });
 
   // ── File ingestion ──────────────────────────────────────────────────────
-  const ingestFiles = useCallback((fileList: FileList | File[]) => {
-    const files = Array.from(fileList).filter(f => isImageFile(f.name));
-    if (files.length === 0) {
-      toast.error('No supported image files found');
-      return;
-    }
-
+  const buildAndAddItems = useCallback((files: File[], cameraList: { id: string; ref: string }[]) => {
     const items: QueueItem[] = files.map(f => {
       const { cameraRef, stepType } = parseFilename(f.name);
-      const matchedCamera = cameras.find(
+      const matchedCamera = cameraList.find(
         c => c.ref.toUpperCase() === cameraRef?.toUpperCase()
       );
       const status: QueueStatus = matchedCamera ? 'pending' : 'unassigned';
@@ -94,15 +91,45 @@ export default function M2_ImageImporter() {
         result: null,
       };
     });
-
     addQueueItems(items);
     items.forEach((item, i) => {
       const file = files[i];
       if (file) fileMapRef.current.set(item.id, file);
     });
-
     toast.success(`Added ${items.length} image${items.length !== 1 ? 's' : ''} to queue`);
-  }, [cameras, addQueueItems]);
+  }, [addQueueItems]);
+
+  const ingestFiles = useCallback((fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter(f => isImageFile(f.name));
+    if (files.length === 0) {
+      toast.error('No supported image files found');
+      return;
+    }
+
+    const detectedRefs = [...new Set(
+      files.map(f => parseFilename(f.name).cameraRef).filter(Boolean) as string[]
+    )];
+    const newRefs = detectedRefs.filter(
+      ref => !cameras.some(c => c.ref.toUpperCase() === ref.toUpperCase())
+    );
+
+    if (newRefs.length > 0) {
+      setNewRefsDialog({ refs: newRefs, files });
+    } else {
+      buildAndAddItems(files, cameras);
+    }
+  }, [cameras, buildAndAddItems]);
+
+  function confirmCreateCameras(refsToCreate: string[], files: File[]) {
+    const newEntries = refsToCreate.map(ref => ({ ref, id: addCameraWithRef(ref) }));
+    buildAndAddItems(files, [...cameras, ...newEntries]);
+    setNewRefsDialog(null);
+  }
+
+  function skipCreateCameras(files: File[]) {
+    buildAndAddItems(files, cameras);
+    setNewRefsDialog(null);
+  }
 
   // ── Drag and drop ───────────────────────────────────────────────────────
   const onDragOver = (e: React.DragEvent) => {
@@ -472,6 +499,55 @@ export default function M2_ImageImporter() {
           onClose={() => setViewerItem(null)}
         />
       )}
+
+      {/* ── New Camera Refs Dialog ────────────────────────────────── */}
+      <Dialog
+        open={!!newRefsDialog}
+        onOpenChange={v => { if (!v && newRefsDialog) skipCreateCameras(newRefsDialog.files); }}
+      >
+        <DialogContent style={{ background: 'var(--rk-surface)', borderColor: 'var(--rk-border)' }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <PlusCircle className="w-4 h-4" style={{ color: 'var(--rk-accent)' }} />
+              New camera references detected
+            </DialogTitle>
+            <DialogDescription className="text-xs" style={{ color: 'var(--rk-text2)' }}>
+              {newRefsDialog?.refs.length} camera ref{newRefsDialog && newRefsDialog.refs.length !== 1 ? 's' : ''} found in filenames that don&apos;t exist yet. Create blank camera records for them now?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--rk-border)' }}>
+            {newRefsDialog?.refs.map(ref => (
+              <div
+                key={ref}
+                className="flex items-center gap-3 px-3 py-2 border-b last:border-b-0 text-sm"
+                style={{ borderColor: 'var(--rk-border)', background: 'var(--rk-surface2)' }}
+              >
+                <span className="font-mono font-medium" style={{ color: 'var(--rk-accent)' }}>{ref}</span>
+                <span className="text-xs" style={{ color: 'var(--rk-text3)' }}>new camera record</span>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => newRefsDialog && skipCreateCameras(newRefsDialog.files)}
+            >
+              Skip — keep unassigned
+            </Button>
+            <Button
+              size="sm"
+              style={{ background: 'var(--rk-accent)', color: '#000' }}
+              onClick={() => newRefsDialog && confirmCreateCameras(newRefsDialog.refs, newRefsDialog.files)}
+            >
+              <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+              Create {newRefsDialog?.refs.length} camera{newRefsDialog && newRefsDialog.refs.length !== 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
