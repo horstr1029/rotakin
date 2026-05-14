@@ -4,7 +4,7 @@ module.exports = {
       name: 'rotakin',
       script: 'node_modules/.bin/next',
       args: 'start -p 3004',
-      cwd: '/home/apps/rotakin',
+      cwd: '/var/www/rotakin',
       instances: 1,
       autorestart: true,
       watch: false,
