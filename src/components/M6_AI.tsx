@@ -60,6 +60,8 @@ export default function M6_AI() {
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('rk-ollama-url') || 'http://localhost:11434');
   const [textModel, setTextModel] = useState(() => localStorage.getItem('rk-ollama-text-model') || 'qwen2.5:14b');
   const [visionModel, setVisionModel] = useState(() => localStorage.getItem('rk-ollama-vision-model') || 'llama3.2-vision:11b');
+  const [cfClientId, setCfClientId] = useState(() => localStorage.getItem('rk-cf-client-id') || '');
+  const [cfClientSecret, setCfClientSecret] = useState(() => localStorage.getItem('rk-cf-client-secret') || '');
   const [connected, setConnected] = useState<boolean | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -91,10 +93,17 @@ export default function M6_AI() {
     localStorage.setItem(key, value);
   }
 
+  function ollamaHeaders(): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (cfClientId.trim()) h['CF-Access-Client-Id'] = cfClientId.trim();
+    if (cfClientSecret.trim()) h['CF-Access-Client-Secret'] = cfClientSecret.trim();
+    return h;
+  }
+
   async function testConnection() {
     setTesting(true);
     try {
-      const res = await fetch(`${serverUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${serverUrl}/api/tags`, { headers: ollamaHeaders(), signal: AbortSignal.timeout(8000) });
       setConnected(res.ok);
       if (res.ok) {
         const data = await res.json() as { models?: { name: string }[] };
@@ -120,7 +129,7 @@ export default function M6_AI() {
     try {
       const res = await fetch(`${serverUrl}/api/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ollamaHeaders(),
         body: JSON.stringify({ model: textModel, prompt, stream: true }),
         signal: abortRef.current.signal,
       });
@@ -156,7 +165,7 @@ export default function M6_AI() {
   async function ollamaVisionRequest(base64: string, prompt: string): Promise<string> {
     const res = await fetch(`${serverUrl}/api/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: ollamaHeaders(),
       body: JSON.stringify({
         model: visionModel,
         prompt,
@@ -320,7 +329,7 @@ export default function M6_AI() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Server URL</Label>
-              <Input value={serverUrl} onChange={e => { setServerUrl(e.target.value); persist('rk-ollama-url', e.target.value); }} placeholder="http://localhost:11434" />
+              <Input value={serverUrl} onChange={e => { setServerUrl(e.target.value); persist('rk-ollama-url', e.target.value); }} placeholder="https://ollama.yourdomain.com" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Text Model</Label>
@@ -331,6 +340,17 @@ export default function M6_AI() {
               <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Vision Model</Label>
               <Input value={visionModel} onChange={e => { setVisionModel(e.target.value); persist('rk-ollama-vision-model', e.target.value); }} placeholder="llama3.2-vision:11b" />
               <p className="text-[10px]" style={{ color: 'var(--rk-text3)' }}>For image analysis</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>CF-Access-Client-Id</Label>
+              <Input value={cfClientId} onChange={e => { setCfClientId(e.target.value); persist('rk-cf-client-id', e.target.value); }} placeholder="Leave blank if not using Cloudflare Access" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>CF-Access-Client-Secret</Label>
+              <Input type="password" value={cfClientSecret} onChange={e => { setCfClientSecret(e.target.value); persist('rk-cf-client-secret', e.target.value); }} placeholder="Service token secret" />
             </div>
           </div>
           <div className="flex items-center gap-3">
