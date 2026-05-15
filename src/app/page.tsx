@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
+import { useTheme } from '@/lib/useTheme';
 import AppHeader from '@/components/AppHeader';
 import TabNav from '@/components/TabNav';
 import AuditManager from '@/components/AuditManager';
@@ -19,6 +20,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>('M1');
   const [view, setView] = useState<'manager' | 'audit'>('manager');
   const { initialize } = useStore();
+  useTheme();
 
   useEffect(() => { initialize(); }, [initialize]);
 
