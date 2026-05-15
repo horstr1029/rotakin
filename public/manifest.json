@@ -1,0 +1,13 @@
+{
+  "name": "Rotakin v3 — CCTV Audit Platform",
+  "short_name": "Rotakin",
+  "description": "SANS 10222-5-1-4 CCTV compliance audit and reporting",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f1a",
+  "theme_color": "#00c2ff",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

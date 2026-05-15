@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store';
 import type { SiteInfo, AuditState } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import FloorPlanCard from './FloorPlanCard';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +21,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function M1_SiteSetup() {
-  const { state, updateSite, updateBranding } = useStore();
+  const { state, updateSite, updateBranding, updateCameraPin } = useStore();
   const { site, branding } = state.audit;
   const orgLogoRef = useRef<HTMLInputElement>(null);
   const clientLogoRef = useRef<HTMLInputElement>(null);
@@ -403,6 +404,13 @@ export default function M1_SiteSetup() {
           </div>
         </CardContent>
       </Card>
+
+      <FloorPlanCard
+        floorPlan={site.floorPlan ?? ''}
+        cameras={state.audit.cameras}
+        onUploadFloorPlan={(url) => updateSite({ floorPlan: url })}
+        onPinCamera={(cameraId, x, y) => updateCameraPin(cameraId, x, y)}
+      />
     </div>
   );
 }

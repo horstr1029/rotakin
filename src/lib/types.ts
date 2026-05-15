@@ -33,6 +33,7 @@ export interface SiteInfo {
   siteType: string;
   certBody: string;
   activeStandard: string;
+  floorPlan?: string;
 }
 
 export interface Standard {
@@ -64,6 +65,8 @@ export interface Camera {
   targetDistance: string;
   lighting: string;
   notes: string;
+  pinX?: number;
+  pinY?: number;
   images: {
     static: ImageSlot | null;
     smear: ImageSlot | null;
@@ -169,4 +172,13 @@ export interface HistorySnapshot {
   cameraCount: number;
   complianceRate: number;
   data: AuditState;
+}
+
+export interface AuditMeta {
+  id: string;
+  siteName: string;
+  client: string;
+  auditDate: string;
+  cameraCount: number;
+  lastModified: string;
 }

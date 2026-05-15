@@ -4,7 +4,47 @@ import { classifyLevel } from './standards';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JsPDFInstance = any;
 
-export async function generateSANSReport(auditData: AuditState): Promise<void> {
+const DARK_PALETTE = {
+  bg: [11, 15, 26],
+  surface: [17, 24, 39],
+  surface2: [26, 34, 53],
+  accent: [0, 194, 255],
+  gold: [240, 180, 41],
+  green: [16, 217, 138],
+  red: [255, 71, 87],
+  orange: [255, 107, 53],
+  purple: [167, 139, 250],
+  text: [232, 237, 245],
+  text2: [136, 153, 180],
+  text3: [74, 95, 122],
+  border2: [36, 51, 82],
+  white: [255, 255, 255],
+  altRow: [15, 22, 36],
+};
+
+const LIGHT_PALETTE = {
+  bg: [255, 255, 255],
+  surface: [248, 250, 252],
+  surface2: [241, 245, 249],
+  accent: [0, 136, 187],
+  gold: [217, 119, 6],
+  green: [5, 150, 105],
+  red: [220, 38, 38],
+  orange: [234, 88, 12],
+  purple: [109, 40, 217],
+  text: [15, 23, 42],
+  text2: [71, 85, 105],
+  text3: [148, 163, 184],
+  border2: [203, 213, 225],
+  white: [255, 255, 255],
+  altRow: [241, 245, 249],
+};
+
+function getPalette(lightMode: boolean) {
+  return lightMode ? LIGHT_PALETTE : DARK_PALETTE;
+}
+
+export async function generateSANSReport(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
@@ -18,22 +58,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
   const contentW = pageW - margin * 2;
 
   // Color palette
-  const C = {
-    bg: [11, 15, 26],
-    surface: [17, 24, 39],
-    surface2: [26, 34, 53],
-    accent: [0, 194, 255],
-    gold: [240, 180, 41],
-    green: [16, 217, 138],
-    red: [255, 71, 87],
-    orange: [255, 107, 53],
-    purple: [167, 139, 250],
-    text: [232, 237, 245],
-    text2: [136, 153, 180],
-    text3: [74, 95, 122],
-    border2: [36, 51, 82],
-    white: [255, 255, 255],
-  };
+  const C = getPalette(lightMode);
 
   // Helper: set fill color
   function setFill(rgb: number[]) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); }
@@ -190,7 +215,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
       fontStyle: 'bold',
     },
     alternateRowStyles: {
-      fillColor: [15, 22, 36],
+      fillColor: C.altRow,
     },
     columnStyles: {
       0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 55 },
@@ -281,7 +306,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
       fontStyle: 'bold',
     },
     alternateRowStyles: {
-      fillColor: [15, 22, 36],
+      fillColor: C.altRow,
     },
     didParseCell: (data: { section: string; column: { index: number }; cell: { styles: { textColor: number[] } }; row: { raw: string[] } }) => {
       if (data.section === 'body' && data.column.index === 5) {
@@ -359,7 +384,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
         fontSize: 8,
       },
       headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [15, 22, 36] },
+      alternateRowStyles: { fillColor: C.altRow },
       columnStyles: { 0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 50 } },
     });
 
@@ -391,7 +416,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
           fontSize: 8,
         },
         headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [15, 22, 36] },
+        alternateRowStyles: { fillColor: C.altRow },
         columnStyles: {
           0: { cellWidth: 45 },
           2: { cellWidth: 18, fontStyle: 'bold' },
@@ -435,7 +460,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
           fontSize: 8,
         },
         headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [15, 22, 36] },
+        alternateRowStyles: { fillColor: C.altRow },
         columnStyles: { 0: { cellWidth: 15 } },
         didParseCell: (data: { section: string; column: { index: number }; cell: { styles: { textColor: number[] } }; row: { raw: string[] } }) => {
           if (data.section === 'body' && data.column.index === 4) {
@@ -518,7 +543,7 @@ export async function generateSANSReport(auditData: AuditState): Promise<void> {
           fontSize: 8,
         },
         headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [15, 22, 36] },
+        alternateRowStyles: { fillColor: C.altRow },
         columnStyles: {
           0: { cellWidth: 45 },
           3: { cellWidth: 22, fontStyle: 'bold' },
@@ -712,7 +737,8 @@ async function generateTestCertificatePage(
   doc: JsPDFInstance,
   auditData: AuditState,
   cam: { id: string } & Record<string, unknown>,
-  isFirstPage: boolean
+  isFirstPage: boolean,
+  lightMode: boolean = false
 ): Promise<void> {
   const { audit } = auditData;
   const { site, standards } = audit;
@@ -725,12 +751,7 @@ async function generateTestCertificatePage(
   const margin = 15;
   const contentW = pageW - margin * 2;
 
-  const C = {
-    bg: [11, 15, 26], surface: [17, 24, 39], surface2: [26, 34, 53],
-    accent: [0, 194, 255], gold: [240, 180, 41], green: [16, 217, 138],
-    red: [255, 71, 87], text: [232, 237, 245], text2: [136, 153, 180],
-    text3: [74, 95, 122], border2: [36, 51, 82], white: [255, 255, 255],
-  };
+  const C = getPalette(lightMode);
 
   function setFill(rgb: number[]) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); }
   function setTextColor(rgb: number[]) { doc.setTextColor(rgb[0], rgb[1], rgb[2]); }
@@ -1001,7 +1022,7 @@ async function generateTestCertificatePage(
   doc.text(`Generated by Rotakin v3 | ${new Date().toLocaleString()}`, pageW / 2, pageH - 6, { align: 'center' });
 }
 
-export async function generateTestResultCards(auditData: AuditState): Promise<void> {
+export async function generateTestResultCards(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
@@ -1009,7 +1030,7 @@ export async function generateTestResultCards(auditData: AuditState): Promise<vo
   const { cameras } = auditData.audit;
 
   for (let i = 0; i < cameras.length; i++) {
-    await generateTestCertificatePage(doc, auditData, cameras[i] as unknown as { id: string } & Record<string, unknown>, i === 0);
+    await generateTestCertificatePage(doc, auditData, cameras[i] as unknown as { id: string } & Record<string, unknown>, i === 0, lightMode);
   }
 
   const { site } = auditData.audit;
@@ -1018,7 +1039,7 @@ export async function generateTestResultCards(auditData: AuditState): Promise<vo
   doc.save(filename);
 }
 
-export async function generateSingleTestResult(auditData: AuditState, cameraId: string): Promise<void> {
+export async function generateSingleTestResult(auditData: AuditState, cameraId: string, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
@@ -1026,7 +1047,7 @@ export async function generateSingleTestResult(auditData: AuditState, cameraId: 
   const camera = auditData.audit.cameras.find(c => c.id === cameraId);
   if (!camera) return;
 
-  await generateTestCertificatePage(doc, auditData, camera as unknown as { id: string } & Record<string, unknown>, true);
+  await generateTestCertificatePage(doc, auditData, camera as unknown as { id: string } & Record<string, unknown>, true, lightMode);
 
   const { site } = auditData.audit;
   const date = new Date().toISOString().slice(0, 10);
@@ -1042,14 +1063,8 @@ function hexToRgb(hex: string): number[] {
   return [r, g, b];
 }
 
-function makePdfHelpers(doc: JsPDFInstance) {
-  const C = {
-    bg: [11, 15, 26], surface: [17, 24, 39], surface2: [26, 34, 53],
-    accent: [0, 194, 255], gold: [240, 180, 41], green: [16, 217, 138],
-    red: [255, 71, 87], orange: [255, 107, 53], purple: [167, 139, 250],
-    text: [232, 237, 245], text2: [136, 153, 180], text3: [74, 95, 122],
-    border2: [36, 51, 82], white: [255, 255, 255],
-  };
+function makePdfHelpers(doc: JsPDFInstance, lightMode: boolean = false) {
+  const C = getPalette(lightMode);
   const pageW: number = doc.internal.pageSize.getWidth();
   const pageH: number = doc.internal.pageSize.getHeight();
   const margin = 20;
@@ -1093,14 +1108,14 @@ function makePdfHelpers(doc: JsPDFInstance) {
   return { C, pageW, pageH, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, topBar, bottomBar, pageHeader };
 }
 
-export async function generateExecutiveSummary(auditData: AuditState): Promise<void> {
+export async function generateExecutiveSummary(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
   const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const { audit } = auditData;
   const { site, cameras, standards } = audit;
-  const { C, pageW, pageH, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar } = makePdfHelpers(doc);
+  const { C, pageW, pageH, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar } = makePdfHelpers(doc, lightMode);
 
   const totalCams = cameras.length;
   const compliant = cameras.filter(c => {
@@ -1191,7 +1206,7 @@ export async function generateExecutiveSummary(auditData: AuditState): Promise<v
       margin: { left: margin, right: margin },
       styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
       headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [15, 22, 36] },
+      alternateRowStyles: { fillColor: C.altRow },
     });
   }
 
@@ -1248,7 +1263,7 @@ export async function generateExecutiveSummary(auditData: AuditState): Promise<v
     margin: { left: margin, right: margin },
     styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 9 },
     headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [15, 22, 36] },
+    alternateRowStyles: { fillColor: C.altRow },
   });
 
   const signY = (doc as JsPDFInstance).lastAutoTable.finalY + 30;
@@ -1272,14 +1287,14 @@ export async function generateExecutiveSummary(auditData: AuditState): Promise<v
   doc.save(fname);
 }
 
-export async function generateTechnicalAppendix(auditData: AuditState): Promise<void> {
+export async function generateTechnicalAppendix(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
   const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const { audit } = auditData;
   const { site, cameras, standards } = audit;
-  const { C, pageW, margin, setFill, setTextColor, setDrawColor, bottomBar, pageHeader } = makePdfHelpers(doc);
+  const { C, pageW, margin, setFill, setTextColor, setDrawColor, bottomBar, pageHeader } = makePdfHelpers(doc, lightMode);
 
   pageHeader('TECHNICAL APPENDIX');
 
@@ -1312,7 +1327,7 @@ export async function generateTechnicalAppendix(auditData: AuditState): Promise<
 
   for (const cam of cameras) {
     doc.addPage();
-    const { paintBackground, topBar } = makePdfHelpers(doc);
+    const { paintBackground, topBar } = makePdfHelpers(doc, lightMode);
     paintBackground();
     topBar();
 
@@ -1345,7 +1360,7 @@ export async function generateTechnicalAppendix(auditData: AuditState): Promise<
       margin: { left: margin, right: margin },
       styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
       headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [15, 22, 36] },
+      alternateRowStyles: { fillColor: C.altRow },
       columnStyles: { 0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 55 } },
     });
 
@@ -1369,7 +1384,7 @@ export async function generateTechnicalAppendix(auditData: AuditState): Promise<
         margin: { left: margin, right: margin },
         styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
         headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [15, 22, 36] },
+        alternateRowStyles: { fillColor: C.altRow },
         columnStyles: { 0: { cellWidth: 45 }, 2: { cellWidth: 18, fontStyle: 'bold' } },
         didParseCell: (data: { section: string; column: { index: number }; cell: { styles: { textColor: number[] } }; row: { raw: string[] } }) => {
           if (data.section === 'body' && data.column.index === 2) {
@@ -1396,14 +1411,14 @@ export async function generateTechnicalAppendix(auditData: AuditState): Promise<
   doc.save(fname);
 }
 
-export async function generateSAPSForensicReport(auditData: AuditState): Promise<void> {
+export async function generateSAPSForensicReport(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
   const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const { audit } = auditData;
   const { site, cameras, standards } = audit;
-  const { C, pageW, pageH, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar } = makePdfHelpers(doc);
+  const { C, pageW, pageH, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar } = makePdfHelpers(doc, lightMode);
 
   paintBackground();
   setFill(C.accent);
@@ -1446,7 +1461,7 @@ export async function generateSAPSForensicReport(auditData: AuditState): Promise
     margin: { left: margin, right: margin },
     styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 9 },
     headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [15, 22, 36] },
+    alternateRowStyles: { fillColor: C.altRow },
     columnStyles: { 0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 65 } },
   });
 
@@ -1474,7 +1489,7 @@ export async function generateSAPSForensicReport(auditData: AuditState): Promise
   for (let idx = 0; idx < cameras.length; idx++) {
     const cam = cameras[idx];
     doc.addPage();
-    const { paintBackground: pb, topBar } = makePdfHelpers(doc);
+    const { paintBackground: pb, topBar } = makePdfHelpers(doc, lightMode);
     pb();
     topBar();
 
@@ -1515,7 +1530,7 @@ export async function generateSAPSForensicReport(auditData: AuditState): Promise
       margin: { left: margin, right: margin },
       styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
       headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [15, 22, 36] },
+      alternateRowStyles: { fillColor: C.altRow },
       columnStyles: { 0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 55 } },
     });
 
@@ -1549,14 +1564,14 @@ export async function generateSAPSForensicReport(auditData: AuditState): Promise
   doc.save(fname);
 }
 
-export async function generateRemediationPlan(auditData: AuditState): Promise<void> {
+export async function generateRemediationPlan(auditData: AuditState, lightMode: boolean = false): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 
   const doc: JsPDFInstance = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const { audit } = auditData;
   const { site, cameras, standards } = audit;
-  const { C, pageW, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar, pageHeader } = makePdfHelpers(doc);
+  const { C, pageW, margin, contentW, setFill, setTextColor, setDrawColor, paintBackground, bottomBar, pageHeader } = makePdfHelpers(doc, lightMode);
 
   const nonCompliantCams = cameras.filter(c => {
     if (!c.measuredR) return false;
@@ -1586,7 +1601,7 @@ export async function generateRemediationPlan(auditData: AuditState): Promise<vo
 
   for (const cam of nonCompliantCams) {
     doc.addPage();
-    const { paintBackground: pb, topBar } = makePdfHelpers(doc);
+    const { paintBackground: pb, topBar } = makePdfHelpers(doc, lightMode);
     pb();
     topBar();
 
@@ -1638,7 +1653,7 @@ export async function generateRemediationPlan(auditData: AuditState): Promise<vo
       margin: { left: margin, right: margin },
       styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
       headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [15, 22, 36] },
+      alternateRowStyles: { fillColor: C.altRow },
       columnStyles: { 0: { fontStyle: 'bold', textColor: C.text2, cellWidth: 55 } },
     });
 
@@ -1711,7 +1726,7 @@ export async function generateRemediationPlan(auditData: AuditState): Promise<vo
     margin: { left: margin, right: margin },
     styles: { fillColor: C.surface, textColor: C.text, lineColor: C.surface2, lineWidth: 0.3, fontSize: 8 },
     headStyles: { fillColor: C.surface2, textColor: C.accent, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [15, 22, 36] },
+    alternateRowStyles: { fillColor: C.altRow },
     columnStyles: { 0: { cellWidth: 12 }, 6: { fontStyle: 'bold' } },
     didParseCell: (data: { section: string; column: { index: number }; cell: { styles: { textColor: number[] } }; row: { raw: string[] } }) => {
       if (data.section === 'body' && data.column.index === 6) {

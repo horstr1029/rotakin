@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
-import { Plus, FileSpreadsheet, Search, Copy, Trash2, Camera as CameraIcon } from 'lucide-react';
+import { Plus, FileSpreadsheet, Search, Copy, Trash2, Camera as CameraIcon, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,6 +14,7 @@ import { classifyLevel, getCameraHealth } from '@/lib/standards';
 import { parseCSV, CSV_TEMPLATE } from '@/lib/csvImport';
 import type { Camera } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import CameraSheet from './CameraSheet';
 
 type SortMode = 'id' | 'zone' | 'level' | 'status';
@@ -30,7 +31,7 @@ const HEALTH_LABEL: Record<string, string> = {
 };
 
 export default function M3_Cameras() {
-  const { state, addCamera, deleteCamera, duplicateCamera, importCameras } = useStore();
+  const { state, addCamera, deleteCamera, duplicateCamera, importCameras, updateCamera } = useStore();
   const { cameras, standards, auditStepDefs } = state.audit;
 
   const [search, setSearch] = useState('');
@@ -38,6 +39,10 @@ export default function M3_Cameras() {
   const [sortMode, setSortMode] = useState<SortMode>('id');
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [zoneInput, setZoneInput] = useState('');
+  const [showZoneInput, setShowZoneInput] = useState(false);
+  const [showStandardInput, setShowStandardInput] = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
 
   // Keep selected camera in sync with store updates
@@ -129,6 +134,62 @@ export default function M3_Cameras() {
       if (newCam) openCamera(newCam);
     }, 0);
   }
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (displayed.every(c => selectedIds.has(c.id))) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        displayed.forEach(c => next.delete(c.id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        displayed.forEach(c => next.add(c.id));
+        return next;
+      });
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setShowZoneInput(false);
+    setShowStandardInput(false);
+    setZoneInput('');
+  }
+
+  function applyZone() {
+    const zone = zoneInput.trim();
+    if (!zone) return;
+    selectedIds.forEach(id => updateCamera(id, { zone }));
+    toast.success(`Zone set on ${selectedIds.size} camera${selectedIds.size !== 1 ? 's' : ''}`);
+    clearSelection();
+  }
+
+  function applyStandard(standardName: string) {
+    selectedIds.forEach(id => updateCamera(id, { requiredStandard: standardName }));
+    toast.success(`Standard set on ${selectedIds.size} camera${selectedIds.size !== 1 ? 's' : ''}`);
+    clearSelection();
+  }
+
+  function bulkDelete() {
+    if (!window.confirm(`Delete ${selectedIds.size} camera${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    const count = selectedIds.size;
+    selectedIds.forEach(id => deleteCamera(id));
+    toast.success(`Deleted ${count} camera${count !== 1 ? 's' : ''}`);
+    clearSelection();
+  }
+
+  const allSelected = displayed.length > 0 && displayed.every(c => selectedIds.has(c.id));
+  const someSelected = displayed.some(c => selectedIds.has(c.id)) && !allSelected;
 
   return (
     <div className="space-y-4">

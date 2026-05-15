@@ -1,9 +1,9 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot, CameraTestRecord, TestCategory } from './types';
+import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot, CameraTestRecord, TestCategory, AuditMeta } from './types';
 import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS, STANDARD_EXPECTED } from './standards';
-import { loadAuditFromDB, saveAuditToDB, saveHistorySnapshot, deleteHistorySnapshot } from './storage';
+import { loadAuditFromDB, saveAuditToDB, saveHistorySnapshot, deleteHistorySnapshot, loadAuditIndex, saveAuditIndex, saveAuditById, loadAuditById, deleteAuditById, clearAuditDB } from './storage';
 import { classifyLevel } from './standards';
 
 function createBlankAudit(): AuditState {
@@ -110,6 +110,12 @@ interface StoreState {
   imageQueue: QueueItem[];
   isProcessingQueue: boolean;
 
+  auditList: AuditMeta[];
+  loadAuditList: () => Promise<void>;
+  openAuditById: (id: string) => Promise<void>;
+  deleteAuditFromList: (id: string) => Promise<void>;
+  updateCameraPin: (cameraId: string, pinX: number, pinY: number) => void;
+
   initialize: () => Promise<void>;
   scheduleSave: () => void;
 
@@ -160,13 +166,63 @@ export const useStore = create<StoreState>((set, get) => ({
   imageQueue: [],
   isProcessingQueue: false,
 
-  initialize: async () => {
-    const saved = await loadAuditFromDB();
-    if (saved && saved.schemaVersion === '3.0') {
-      set({ state: saved, initialized: true });
-    } else {
-      set({ initialized: true });
+  auditList: [],
+
+  loadAuditList: async () => {
+    const list = await loadAuditIndex();
+    set({ auditList: list });
+  },
+
+  openAuditById: async (id) => {
+    const loaded = await loadAuditById(id);
+    if (loaded && loaded.schemaVersion === '3.0') {
+      set({ state: loaded, initialized: true });
     }
+  },
+
+  deleteAuditFromList: async (id) => {
+    await deleteAuditById(id);
+    const list = await loadAuditIndex();
+    set({ auditList: list });
+  },
+
+  updateCameraPin: (cameraId, pinX, pinY) => {
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          cameras: s.state.audit.cameras.map(c =>
+            c.id === cameraId ? { ...c, pinX, pinY } : c
+          ),
+        },
+      },
+    }));
+    get().scheduleSave();
+  },
+
+  initialize: async () => {
+    const oldAudit = await loadAuditFromDB();
+    if (oldAudit && oldAudit.schemaVersion === '3.0') {
+      await saveAuditById(oldAudit.audit.id, oldAudit);
+      const index = await loadAuditIndex();
+      const meta: AuditMeta = {
+        id: oldAudit.audit.id,
+        siteName: oldAudit.audit.site.siteName,
+        client: oldAudit.audit.site.client,
+        auditDate: oldAudit.audit.site.auditDate,
+        cameraCount: oldAudit.audit.cameras.length,
+        lastModified: oldAudit.audit.lastModified,
+      };
+      if (!index.find(a => a.id === meta.id)) {
+        index.push(meta);
+        await saveAuditIndex(index);
+      }
+      await clearAuditDB();
+    }
+    const list = await loadAuditIndex();
+    set({ auditList: list, initialized: true });
   },
 
   scheduleSave: () => {
@@ -394,8 +450,16 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   newAudit: () => {
-    set({ state: createBlankAudit() });
-    get().scheduleSave();
+    const current = get().state;
+    const hasData = current.audit.site.siteName.trim() !== '' || current.audit.cameras.length > 0;
+    if (hasData) {
+      saveAuditToDB(current);
+    }
+    const blank = createBlankAudit();
+    set({ state: blank });
+    saveAuditToDB(blank).then(() => {
+      get().loadAuditList();
+    });
   },
 
   loadAudit: (data) => {

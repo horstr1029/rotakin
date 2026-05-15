@@ -1,19 +1,51 @@
 'use client';
-import { useState } from 'react';
-import { Plus, RotateCcw, Trash2, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, RotateCcw, Trash2, ChevronUp, ChevronDown, AlertTriangle, BookTemplate, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/lib/store';
 import type { Standard, StepDef } from '@/lib/types';
 import { DEFAULT_STANDARDS, BS_EN_STANDARDS, DEFAULT_STEP_DEFS } from '@/lib/standards';
-import { clearAuditDB, clearHistoryDB } from '@/lib/storage';
+import { clearAuditDB, clearHistoryDB, saveTemplate, loadTemplates, deleteTemplate, type AuditTemplate } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export default function M8_Settings() {
   const { state, updateStandards, updateStepDefs, newAudit } = useStore();
+  const [templates, setTemplates] = useState<AuditTemplate[]>([]);
+  const [templateName, setTemplateName] = useState('');
+
+  useEffect(() => { loadTemplates().then(setTemplates); }, []);
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) { toast.error('Enter a template name'); return; }
+    const t: AuditTemplate = {
+      id: crypto.randomUUID(),
+      name: templateName.trim(),
+      savedAt: new Date().toISOString(),
+      standards: state.audit.standards,
+      auditStepDefs: state.audit.auditStepDefs,
+    };
+    await saveTemplate(t);
+    setTemplates(await loadTemplates());
+    setTemplateName('');
+    toast.success('Template saved');
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    await deleteTemplate(id);
+    setTemplates(await loadTemplates());
+    toast.success('Template deleted');
+  }
+
+  function handleApplyTemplate(t: AuditTemplate) {
+    updateStandards(t.standards);
+    updateStepDefs(t.auditStepDefs);
+    toast.success(`Applied template: ${t.name}`);
+  }
   const { standards, auditStepDefs } = state.audit;
 
   // — Standards editing —
@@ -202,6 +234,64 @@ export default function M8_Settings() {
             <RotateCcw className="w-3 h-3" /> Reset to Defaults
           </Button>
         </div>
+      </Card>
+
+      {/* Audit Templates */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BookTemplate className="w-4 h-4" style={{ color: 'var(--rk-purple)' }} /> Audit Templates
+          </CardTitle>
+          <CardDescription className="text-xs">Save the current standards and step definitions as a reusable template.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Template name (e.g. SANS Retail Site)"
+              className="text-xs"
+              onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+            />
+            <Button size="sm" className="gap-1.5 text-xs shrink-0" onClick={handleSaveTemplate}>
+              <Save className="w-3 h-3" /> Save
+            </Button>
+          </div>
+          {templates.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Saved</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {templates.map(t => (
+                  <TableRow key={t.id}>
+                    <TableCell className="text-sm font-medium">{t.name}</TableCell>
+                    <TableCell>
+                      <Badge className="text-xs font-mono" style={{ color: 'var(--rk-text3)', background: 'var(--rk-surface2)', border: '1px solid var(--rk-border)' }}>
+                        {new Date(t.savedAt).toLocaleDateString()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => handleApplyTemplate(t)}>Apply</Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteTemplate(t.id)}>
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--rk-red)' }} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {templates.length === 0 && (
+            <p className="text-xs" style={{ color: 'var(--rk-text3)' }}>No templates saved yet.</p>
+          )}
+        </CardContent>
       </Card>
 
       {/* Danger Zone */}

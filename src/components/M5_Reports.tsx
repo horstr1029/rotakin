@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Sun, Moon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +64,7 @@ export default function M5_Reports() {
   const [selected, setSelected] = useState<string>('sans-full');
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [generating, setGenerating] = useState(false);
+  const [pdfLight, setPdfLight] = useState(false);
 
   async function handleGenerate(templateId: string, fmt: ExportFormat) {
     if (state.audit.cameras.length === 0) {
@@ -89,22 +90,22 @@ export default function M5_Reports() {
       }
       switch (templateId) {
         case 'sans-full':
-          await generateSANSReport(state);
+          await generateSANSReport(state, pdfLight);
           break;
         case 'executive':
-          await generateExecutiveSummary(state);
+          await generateExecutiveSummary(state, pdfLight);
           break;
         case 'technical':
-          await generateTechnicalAppendix(state);
+          await generateTechnicalAppendix(state, pdfLight);
           break;
         case 'saps':
-          await generateSAPSForensicReport(state);
+          await generateSAPSForensicReport(state, pdfLight);
           break;
         case 'remediation':
-          await generateRemediationPlan(state);
+          await generateRemediationPlan(state, pdfLight);
           break;
         case 'test-cards':
-          await generateTestResultCards(state);
+          await generateTestResultCards(state, pdfLight);
           break;
         default:
           toast.error('Unknown template');
@@ -203,6 +204,12 @@ export default function M5_Reports() {
               <Download className="w-4 h-4" />
               {generating ? 'Generating…' : `Export ${FORMAT_LABELS[format]}`}
             </Button>
+            {format === 'pdf' && (
+              <Button variant="outline" size="sm" onClick={() => setPdfLight(v => !v)} className="gap-1.5 text-xs">
+                {pdfLight ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                {pdfLight ? 'Light PDF' : 'Dark PDF'}
+              </Button>
+            )}
             <p className="text-xs" style={{ color: 'var(--rk-text3)' }}>
               {state.audit.cameras.length} camera{state.audit.cameras.length !== 1 ? 's' : ''} · {state.audit.site.activeStandard}
             </p>

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Shield, Plus, Upload, Download, HelpCircle, Sun, Moon } from 'lucide-react';
+import { Shield, Plus, Upload, Download, HelpCircle, Sun, Moon, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
@@ -13,9 +13,10 @@ import HelpDialog from '@/components/HelpDialog';
 interface Props {
   activeTab: TabId;
   setActiveTab: (t: TabId) => void;
+  onClose?: () => void;
 }
 
-export default function AppHeader({ setActiveTab }: Props) {
+export default function AppHeader({ setActiveTab, onClose }: Props) {
   const { state, newAudit, loadAudit } = useStore();
   const siteName = state.audit.site.siteName;
   const { theme, toggle } = useTheme();
@@ -69,6 +70,11 @@ export default function AppHeader({ setActiveTab }: Props) {
       className="flex items-center gap-4 px-6 h-14 shrink-0 border-b"
       style={{ background: 'var(--rk-surface)', borderColor: 'var(--rk-border)' }}
     >
+      {onClose && (
+        <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5 text-xs mr-1">
+          <ChevronLeft className="w-3.5 h-3.5" /> Audits
+        </Button>
+      )}
       {/* Logo */}
       <div className="flex items-center gap-2.5">
         <div
