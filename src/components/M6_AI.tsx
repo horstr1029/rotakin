@@ -57,7 +57,7 @@ export default function M6_AI() {
   const { state, updateAiReports } = useStore();
 
   // Ollama state — persisted to localStorage
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('rk-ollama-url') || 'http://localhost:11434');
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('rk-ollama-url') || 'http://localhost:11211');
   const [textModel, setTextModel] = useState(() => localStorage.getItem('rk-ollama-text-model') || 'qwen2.5:14b');
   const [visionModel, setVisionModel] = useState(() => localStorage.getItem('rk-ollama-vision-model') || 'llama3.2-vision:11b');
   const [cfClientId, setCfClientId] = useState(() => localStorage.getItem('rk-cf-client-id') || '');
