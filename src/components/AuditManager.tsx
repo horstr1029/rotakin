@@ -1,10 +1,12 @@
 'use client';
 import { useEffect } from 'react';
-import { Plus, Folder, Trash2, Shield, FileText } from 'lucide-react';
+import { Plus, Folder, Trash2, Shield, FileText, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useStore } from '@/lib/store';
 import { toast } from 'sonner';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Props {
   onOpen: (id: string) => void;
@@ -13,6 +15,8 @@ interface Props {
 
 export default function AuditManager({ onOpen, onNew }: Props) {
   const { auditList, loadAuditList, openAuditById, deleteAuditFromList, newAudit } = useStore();
+  const { data: session } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     loadAuditList();
@@ -70,9 +74,19 @@ export default function AuditManager({ onOpen, onNew }: Props) {
           >
             Recent Audits
           </h2>
-          <Button onClick={handleNew} className="gap-1.5" style={{ background: 'var(--rk-accent)', color: '#000' }}>
-            <Plus className="w-4 h-4" /> New Audit
-          </Button>
+          <div className="flex items-center gap-2">
+            {session?.user.role === 'admin' && (
+              <Button variant="outline" size="sm" onClick={() => router.push('/admin')} className="gap-1.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Admin
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/login' })} className="gap-1.5 text-xs">
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </Button>
+            <Button onClick={handleNew} className="gap-1.5" style={{ background: 'var(--rk-accent)', color: '#000' }}>
+              <Plus className="w-4 h-4" /> New Audit
+            </Button>
+          </div>
         </div>
 
         {sorted.length === 0 ? (

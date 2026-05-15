@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,14 +22,17 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getServerSession(authOptions);
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TooltipProvider>
-          {children}
-          <Toaster theme="system" position="bottom-right" />
-        </TooltipProvider>
+        <SessionProviderWrapper session={session}>
+          <TooltipProvider>
+            {children}
+            <Toaster theme="system" position="bottom-right" />
+          </TooltipProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );

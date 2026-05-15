@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   output: 'standalone',
+  serverExternalPackages: ['better-sqlite3', 'bcryptjs'],
 };
 
 export default nextConfig;

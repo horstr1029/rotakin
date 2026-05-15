@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Shield, Plus, Upload, Download, HelpCircle, Sun, Moon, ChevronLeft } from 'lucide-react';
+import { Shield, Plus, Upload, Download, HelpCircle, Sun, Moon, ChevronLeft, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import type { TabId } from '@/app/page';
 import type { AuditState } from '@/lib/types';
 import HelpDialog from '@/components/HelpDialog';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Props {
   activeTab: TabId;
@@ -21,6 +23,8 @@ export default function AppHeader({ setActiveTab, onClose }: Props) {
   const siteName = state.audit.site.siteName;
   const { theme, toggle } = useTheme();
   const [helpOpen, setHelpOpen] = useState(false);
+  const { data: session } = useSession();
+  const router = useRouter();
 
   function handleNew() {
     if (confirm('Start a new audit? Unsaved changes will be lost.')) {
@@ -123,6 +127,18 @@ export default function AppHeader({ setActiveTab, onClose }: Props) {
         </Button>
         <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs">
           <Download className="w-3.5 h-3.5" /> Export
+        </Button>
+        <Separator orientation="vertical" className="h-5 mx-1" />
+        {session?.user.role === 'admin' && (
+          <Button variant="ghost" size="sm" className="w-8 h-8 p-0" title="User Management" onClick={() => router.push('/admin')}>
+            <Settings className="w-3.5 h-3.5" style={{ color: 'var(--rk-text2)' }} />
+          </Button>
+        )}
+        {session?.user && (
+          <span className="text-xs hidden sm:block" style={{ color: 'var(--rk-text3)' }}>{session.user.name}</span>
+        )}
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => signOut({ callbackUrl: '/login' })}>
+          <LogOut className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Sign out</span>
         </Button>
       </div>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
