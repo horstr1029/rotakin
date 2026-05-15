@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot, CameraTestRecord, TestCategory, AuditMeta } from './types';
+import type { AuditState, SiteInfo, Camera, Standard, StepDef, AuditStep, FaceLine, ImageSlot, QueueItem, ImageStepType, HistorySnapshot, CameraTestRecord, TestCategory, AuditMeta, AuditBranding, AuditSignatures } from './types';
 import { DEFAULT_STANDARDS, DEFAULT_STEP_DEFS, STANDARD_EXPECTED } from './standards';
 import { loadAuditFromDB, saveAuditToDB, saveHistorySnapshot, deleteHistorySnapshot, loadAuditIndex, saveAuditIndex, saveAuditById, loadAuditById, deleteAuditById, clearAuditDB } from './storage';
 import { classifyLevel } from './standards';
@@ -34,7 +34,8 @@ function createBlankAudit(): AuditState {
         certBody: '',
         activeStandard: 'SANS 10222-5-1-4',
       },
-      branding: { orgLogo: '', clientLogo: '' },
+      branding: { orgLogo: '', clientLogo: '', companyName: '', companyAddress: '', companyPhone: '', companyEmail: '', companyWebsite: '' },
+      signatures: { engineer: '', witness: '' },
       cameras: [],
       standards: DEFAULT_STANDARDS,
       auditStepDefs: DEFAULT_STEP_DEFS,
@@ -120,7 +121,8 @@ interface StoreState {
   scheduleSave: () => void;
 
   updateSite: (fields: Partial<SiteInfo>) => void;
-  updateBranding: (fields: Partial<{ orgLogo: string; clientLogo: string }>) => void;
+  updateBranding: (fields: Partial<AuditBranding>) => void;
+  updateSignatures: (fields: Partial<AuditSignatures>) => void;
   addCamera: () => void;
   updateCamera: (id: string, fields: Partial<Camera>) => void;
   updateCameraImage: (cameraId: string, slot: keyof Camera['images'], image: ImageSlot | null) => void;
@@ -256,6 +258,20 @@ export const useStore = create<StoreState>((set, get) => ({
           ...s.state.audit,
           lastModified: new Date().toISOString(),
           branding: { ...s.state.audit.branding, ...fields },
+        },
+      },
+    }));
+    get().scheduleSave();
+  },
+
+  updateSignatures: (fields) => {
+    set(s => ({
+      state: {
+        ...s.state,
+        audit: {
+          ...s.state.audit,
+          lastModified: new Date().toISOString(),
+          signatures: { ...(s.state.audit.signatures ?? { engineer: '', witness: '' }), ...fields },
         },
       },
     }));

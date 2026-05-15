@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/lib/store';
 import { generateSANSReport, generateExecutiveSummary, generateTechnicalAppendix, generateSAPSForensicReport, generateRemediationPlan, generateTestResultCards } from '@/lib/pdf';
 import { exportJSON, exportCSV, exportZIP } from '@/lib/exports';
+import { generateHTMLReport } from '@/lib/htmlReport';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type ExportFormat = 'pdf' | 'json' | 'csv' | 'zip';
+type ExportFormat = 'pdf' | 'html' | 'json' | 'csv' | 'zip';
 
 const TEMPLATES = [
   {
@@ -54,6 +55,7 @@ const TEMPLATES = [
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
   pdf: 'PDF',
+  html: 'HTML Portal',
   json: 'JSON',
   csv: 'CSV',
   zip: 'ZIP',
@@ -73,6 +75,11 @@ export default function M5_Reports() {
     }
     setGenerating(true);
     try {
+      if (fmt === 'html') {
+        generateHTMLReport(state);
+        toast.success('HTML client report downloaded');
+        return;
+      }
       if (fmt === 'json') {
         exportJSON(state);
         toast.success('JSON export downloaded');
@@ -164,7 +171,7 @@ export default function M5_Reports() {
 
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--rk-text3)' }}>Format:</span>
-        {(['pdf', 'json', 'csv', 'zip'] as ExportFormat[]).map(fmt => (
+        {(['pdf', 'html', 'json', 'csv', 'zip'] as ExportFormat[]).map(fmt => (
           <button
             key={fmt}
             onClick={() => setFormat(fmt)}
@@ -209,6 +216,9 @@ export default function M5_Reports() {
                 {pdfLight ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 {pdfLight ? 'Light PDF' : 'Dark PDF'}
               </Button>
+            )}
+            {format === 'html' && (
+              <p className="text-xs" style={{ color: 'var(--rk-text3)' }}>Self-contained file — open in any browser, share by email or USB.</p>
             )}
             <p className="text-xs" style={{ color: 'var(--rk-text3)' }}>
               {state.audit.cameras.length} camera{state.audit.cameras.length !== 1 ? 's' : ''} · {state.audit.site.activeStandard}

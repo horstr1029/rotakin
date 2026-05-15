@@ -11,6 +11,7 @@ import { useStore } from '@/lib/store';
 import type { SiteInfo, AuditState } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import FloorPlanCard from './FloorPlanCard';
+import SignaturePad from './SignaturePad';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -21,8 +22,9 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function M1_SiteSetup() {
-  const { state, updateSite, updateBranding, updateCameraPin } = useStore();
+  const { state, updateSite, updateBranding, updateSignatures, updateCameraPin } = useStore();
   const { site, branding } = state.audit;
+  const signatures = state.audit.signatures ?? { engineer: '', witness: '' };
   const orgLogoRef = useRef<HTMLInputElement>(null);
   const clientLogoRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -325,7 +327,7 @@ export default function M1_SiteSetup() {
             Branding &amp; Logos
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             {/* Org Logo */}
             <div className="space-y-2">
@@ -401,6 +403,57 @@ export default function M1_SiteSetup() {
                 </Button>
               )}
             </div>
+          </div>
+
+          {/* Company Details */}
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: 'var(--rk-text3)' }}>Company Details (appear on report headers)</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <FieldLabel>Company Name</FieldLabel>
+                <Input value={branding.companyName ?? ''} onChange={e => updateBranding({ companyName: e.target.value })} placeholder="e.g. Rotakin Security (Pty) Ltd" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FieldLabel>Company Address</FieldLabel>
+                <Input value={branding.companyAddress ?? ''} onChange={e => updateBranding({ companyAddress: e.target.value })} placeholder="Street, City, Province" />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Phone</FieldLabel>
+                <Input value={branding.companyPhone ?? ''} onChange={e => updateBranding({ companyPhone: e.target.value })} placeholder="+27 11 000 0000" />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Email</FieldLabel>
+                <Input value={branding.companyEmail ?? ''} onChange={e => updateBranding({ companyEmail: e.target.value })} placeholder="info@company.co.za" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FieldLabel>Website</FieldLabel>
+                <Input value={branding.companyWebsite ?? ''} onChange={e => updateBranding({ companyWebsite: e.target.value })} placeholder="www.company.co.za" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 7: Signatures */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--rk-accent)' }}>
+            Signatures
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs mb-4" style={{ color: 'var(--rk-text3)' }}>Draw signatures with mouse or touch. They are saved and embedded in PDF certificates and the HTML report.</p>
+          <div className="grid grid-cols-2 gap-6">
+            <SignaturePad
+              label="Auditing Engineer"
+              value={signatures.engineer}
+              onChange={v => updateSignatures({ engineer: v })}
+            />
+            <SignaturePad
+              label="Witness / Client Representative"
+              value={signatures.witness}
+              onChange={v => updateSignatures({ witness: v })}
+            />
           </div>
         </CardContent>
       </Card>

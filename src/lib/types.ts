@@ -1,3 +1,18 @@
+export interface AuditBranding {
+  orgLogo: string;
+  clientLogo: string;
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyWebsite: string;
+}
+
+export interface AuditSignatures {
+  engineer: string;
+  witness: string;
+}
+
 export interface AuditState {
   schemaVersion: '3.0';
   audit: {
@@ -5,7 +20,8 @@ export interface AuditState {
     createdAt: string;
     lastModified: string;
     site: SiteInfo;
-    branding: { orgLogo: string; clientLogo: string };
+    branding: AuditBranding;
+    signatures: AuditSignatures;
     cameras: Camera[];
     standards: Standard[];
     auditStepDefs: StepDef[];
