@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status as number });
 
   const { id } = await ctx.params;
-  const body = await req.json() as { name?: string; role?: 'admin' | 'user'; isActive?: boolean; newPassword?: string };
+  const body = await req.json() as { name?: string; email?: string; role?: 'admin' | 'user'; isActive?: boolean; newPassword?: string };
 
   if (body.isActive === false) {
     const admins = listUsers().filter(u => u.role === 'admin' && u.isActive);
@@ -34,7 +34,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  const updated = updateUser(id, { name: body.name, role: body.role, isActive: body.isActive });
+  if (body.email !== undefined) {
+    const existing = (await import('@/lib/auth-db')).findUserByEmail(body.email);
+    if (existing && existing.id !== id) {
+      return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+    }
+  }
+  const updated = updateUser(id, { name: body.name, email: body.email, role: body.role, isActive: body.isActive });
   return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'User not found' }, { status: 404 });
 }
 

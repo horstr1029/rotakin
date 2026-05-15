@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Trash2, KeyRound, Shield, User, ChevronLeft } from 'lucide-react';
+import { UserPlus, Trash2, KeyRound, Shield, User, ChevronLeft, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import type { SafeUser, UserRole } from '@/lib/auth-db';
 
 interface CreateForm { name: string; email: string; password: string; role: UserRole; }
+interface EditForm { name: string; email: string; role: UserRole; }
 
 export default function AdminPanel({ currentUserId }: { currentUserId: string }) {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function AdminPanel({ currentUserId }: { currentUserId: string })
   const [deleteTarget, setDeleteTarget] = useState<SafeUser | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [createForm, setCreateForm] = useState<CreateForm>({ name: '', email: '', password: '', role: 'user' });
+  const [editTarget, setEditTarget] = useState<SafeUser | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', email: '', role: 'user' });
   const [submitting, setSubmitting] = useState(false);
 
   const loadUsers = useCallback(async () => {
@@ -51,6 +54,29 @@ export default function AdminPanel({ currentUserId }: { currentUserId: string })
       toast.success(`User ${createForm.email} created`);
       setCreateOpen(false);
       setCreateForm({ name: '', email: '', password: '', role: 'user' });
+      loadUsers();
+    } finally { setSubmitting(false); }
+  }
+
+  function openEdit(user: SafeUser) {
+    setEditTarget(user);
+    setEditForm({ name: user.name, email: user.email, role: user.role });
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${editTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editForm.name, email: editForm.email, role: editForm.role }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) { toast.error(data.error ?? 'Failed to update user'); return; }
+      toast.success('User updated');
+      setEditTarget(null);
       loadUsers();
     } finally { setSubmitting(false); }
   }
@@ -157,6 +183,10 @@ export default function AdminPanel({ currentUserId }: { currentUserId: string })
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Edit user"
+                          onClick={() => openEdit(user)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Reset password"
                           onClick={() => { setResetTarget(user); setNewPassword(''); }}>
                           <KeyRound className="w-3.5 h-3.5" />
@@ -180,6 +210,40 @@ export default function AdminPanel({ currentUserId }: { currentUserId: string })
           )}
         </div>
       </div>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={open => { if (!open) setEditTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update name, email address, or role.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="flex flex-col gap-4 mt-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="e-name">Full Name</Label>
+              <Input id="e-name" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="e-email">Email</Label>
+              <Input id="e-email" type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Role</Label>
+              <Select value={editForm.role} onValueChange={(v: string | null) => { if (v === 'admin' || v === 'user') setEditForm(f => ({ ...f, role: v })); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? 'Saving…' : 'Save Changes'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Create User Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

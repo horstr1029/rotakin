@@ -95,10 +95,11 @@ export function createUser(email: string, name: string, password: string, role: 
   return toSafeUser(findUserById(id)!);
 }
 
-export function updateUser(id: string, fields: Partial<{ name: string; role: UserRole; isActive: boolean }>): SafeUser | null {
+export function updateUser(id: string, fields: Partial<{ name: string; email: string; role: UserRole; isActive: boolean }>): SafeUser | null {
   const sets: string[] = [];
   const values: unknown[] = [];
   if (fields.name !== undefined) { sets.push('name = ?'); values.push(fields.name); }
+  if (fields.email !== undefined) { sets.push('email = ?'); values.push(fields.email.toLowerCase()); }
   if (fields.role !== undefined) { sets.push('role = ?'); values.push(fields.role); }
   if (fields.isActive !== undefined) { sets.push('is_active = ?'); values.push(fields.isActive ? 1 : 0); }
   if (sets.length === 0) { const u = findUserById(id); return u ? toSafeUser(u) : null; }
