@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import { mkdirSync } from 'fs';
+import { randomBytes } from 'crypto';
 
 const DB_PATH = process.env.AUTH_DB_PATH ?? path.join(process.cwd(), 'data', 'rotakin-auth.db');
 
@@ -60,13 +61,17 @@ function seedAdmin(db: Database.Database): void {
   const { c } = db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number };
   if (c > 0) return;
   const email = process.env.ADMIN_EMAIL ?? 'admin@rotakin.local';
-  const password = process.env.ADMIN_INITIAL_PASSWORD ?? 'RotakinAdmin2024!';
+  const configured = process.env.ADMIN_INITIAL_PASSWORD;
+  const password = configured || randomBytes(12).toString('base64url');
   const hash = bcrypt.hashSync(password, 12);
   db.prepare(
     `INSERT INTO users (id, email, name, password_hash, role, is_active, created_at)
      VALUES (?, ?, 'Administrator', ?, 'admin', 1, ?)`
   ).run(crypto.randomUUID(), email.toLowerCase(), hash, new Date().toISOString());
-  console.log(`[rotakin] Seeded default admin: ${email}`);
+  console.log(`[rotakin] Seeded admin: ${email}`);
+  if (!configured) {
+    console.log(`[rotakin] ADMIN_INITIAL_PASSWORD not set; generated one-time password: ${password} (change it at /admin)`);
+  }
 }
 
 function toSafeUser(u: DbUser): SafeUser {

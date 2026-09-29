@@ -23,8 +23,8 @@ Audit data and image processing are **client-side** (IndexedDB, Canvas, WebWorke
 |-----|---------|
 | `NEXTAUTH_SECRET` | JWT signing secret (required) |
 | `NEXTAUTH_URL` | Public base URL |
-| `ADMIN_EMAIL`, `ADMIN_INITIAL_PASSWORD` | Seed admin, used only when the users table is empty (defaults exist in `src/lib/auth-db.ts` — always override in production) |
-| `AUTH_DB_PATH` | SQLite file (default `./data/rotakin-auth.db`; `data/` is not gitignored — don't commit it) |
+| `ADMIN_EMAIL`, `ADMIN_INITIAL_PASSWORD` | Seed admin, used only when the users table is empty (if the password is unset, a random one is generated and logged once at first start) |
+| `AUTH_DB_PATH` | SQLite file (default `./data/rotakin-auth.db`; `data/` is gitignored) |
 
 ## Architecture
 

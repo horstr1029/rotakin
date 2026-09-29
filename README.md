@@ -21,7 +21,7 @@ Environment variables:
 | `ADMIN_EMAIL` / `ADMIN_INITIAL_PASSWORD` | Initial admin, seeded on first run only |
 | `AUTH_DB_PATH` | SQLite path (default `./data/rotakin-auth.db`) |
 
-Set your own admin credentials before first run. Users are created by admins at `/admin`; there is no public sign-up.
+Set `ADMIN_INITIAL_PASSWORD` before first run; if unset, a random password is generated and printed once in the server log. Users are created by admins at `/admin`; there is no public sign-up.
 
 ## Scripts
 
